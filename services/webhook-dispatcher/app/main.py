@@ -1,10 +1,12 @@
 # region Libraries
 
+import asyncio
 import hashlib
 import hmac
 import json
 import logging
 import os
+from collections import deque
 from typing import Any
 
 import httpx
@@ -30,6 +32,11 @@ PORTAINER_URL = os.getenv(
 )
 
 PORTAINER_TIMEOUT = float(os.getenv("PORTAINER_TIMEOUT", "10"))
+
+MAX_PROCESSED_DELIVERIES = int(os.getenv("MAX_PROCESSED_DELIVERIES", "1000"))
+
+processed_deliveries: set[str] = set()
+processed_delivery_order: deque[str] = deque()
 
 # endregion
 
@@ -122,48 +129,90 @@ def get_affected_stacks(paths: set[str]) -> set[str]:
 async def trigger_portainer_stack(
     stack_name: str,
     webhook_key: str,
+    max_attempts: int = 3,
 ) -> bool:
-    """Trigger one Portainer GitOps webhook."""
+    """Trigger one Portainer GitOps webhook with retry logic."""
 
-    webhook_url = (
-        f"{PORTAINER_URL}/api/stacks/webhooks/{webhook_key}"
-    )
+    webhook_url = f"{PORTAINER_URL}/api/stacks/webhooks/{webhook_key}"
 
-    logger.info(
-        "Triggering Portainer stack=%s",
-        stack_name,
-    )
+    delays = [0, 1, 3]
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=PORTAINER_TIMEOUT,
-            follow_redirects=False,
-        ) as client:
-            response = await client.post(webhook_url)
+    for attempt in range(1, max_attempts + 1):
+        logger.info(
+            "Triggering Portainer stack=%s attempt=%s/%s",
+            stack_name,
+            attempt,
+            max_attempts,
+        )
 
-        if 200 <= response.status_code < 300:
-            logger.info(
-                "Portainer trigger succeeded stack=%s status=%s",
+        try:
+            async with httpx.AsyncClient(
+                timeout=PORTAINER_TIMEOUT,
+                follow_redirects=False,
+            ) as client:
+                response = await client.post(webhook_url)
+
+            if 200 <= response.status_code < 300:
+                logger.info(
+                    "Portainer trigger succeeded stack=%s attempt=%s status=%s",
+                    stack_name,
+                    attempt,
+                    response.status_code,
+                )
+                return True
+
+            logger.warning(
+                "Portainer trigger failed stack=%s attempt=%s/%s status=%s",
                 stack_name,
+                attempt,
+                max_attempts,
                 response.status_code,
             )
-            return True
 
-        logger.error(
-            "Portainer trigger failed stack=%s status=%s",
-            stack_name,
-            response.status_code,
-        )
+        except httpx.RequestError as exc:
+            logger.warning(
+                "Portainer trigger request failed stack=%s attempt=%s/%s error=%s",
+                stack_name,
+                attempt,
+                max_attempts,
+                type(exc).__name__,
+            )
 
-        return False
+        if attempt < max_attempts:
+            delay = delays[attempt]
+            logger.info(
+                "Retrying Portainer stack=%s in %s seconds",
+                stack_name,
+                delay,
+            )
 
-    except httpx.RequestError as exc:
-        logger.error(
-            "Portainer trigger request failed stack=%s error=%s",
-            stack_name,
-            type(exc).__name__,
-        )
-        return False
+            await asyncio.sleep(delay)
+
+    logger.error(
+        "Portainer trigger permanently failed stack=%s attempts=%s",
+        stack_name,
+        max_attempts,
+    )
+
+    return False
+
+
+def is_duplicate_delivery(delivery_id: str) -> bool:
+    """Return True if delivery was already processed."""
+
+    if delivery_id in processed_deliveries:
+        return True
+
+    processed_deliveries.add(delivery_id)
+    processed_delivery_order.append(delivery_id)
+
+    while len(processed_delivery_order) > MAX_PROCESSED_DELIVERIES:
+        oldest = processed_delivery_order.popleft()
+        processed_deliveries.discard(oldest)
+
+    return False
+
+
 # endregion
 
 # region Routes
@@ -171,7 +220,7 @@ async def trigger_portainer_stack(
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "healthy"}
 
 
 @app.post("/webhook/github")
@@ -189,7 +238,14 @@ async def github_webhook(
 
     body = await request.body()
 
-    delivery_id = x_github_delivery or "unknown"
+    if not x_github_delivery:
+        logger.warning("Missing GitHub delivery ID")
+        raise HTTPException(
+            status_code=400,
+            detail="Missing delivery ID",
+        )
+
+    delivery_id = x_github_delivery
 
     logger.info(
         "Received GitHub webhook delivery=%s event=%s",
@@ -207,9 +263,25 @@ async def github_webhook(
             delivery_id,
         )
         raise HTTPException(
-            status_code=401,
+            status_code=403,
             detail="Invalid signature",
         )
+
+    # -------------------------------------------------------------------------
+    # Delivery deduplication
+    # -------------------------------------------------------------------------
+
+    if is_duplicate_delivery(delivery_id):
+        logger.info(
+            "Ignoring duplicate GitHub delivery=%s",
+            delivery_id,
+        )
+
+        return {
+            "status": "ignored",
+            "reason": "duplicate_delivery",
+            "delivery_id": delivery_id,
+        }
 
     # -------------------------------------------------------------------------
     # Event validation
