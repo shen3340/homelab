@@ -1,0 +1,22 @@
+services:
+  whisper:
+    image: rhasspy/wyoming-whisper:latest
+    container_name: whisper
+    restart: unless-stopped
+    networks:
+      - ai-net
+    volumes:
+      - /volume1/docker/whisper/data:/data
+
+    ports:
+      - "10300:10300"
+
+    command:
+      - --model
+      - tiny-int8
+      - --language
+      - en
+
+networks:
+  ai-net:
+    external: true
