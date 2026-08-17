@@ -1,0 +1,20 @@
+services:
+  piper:
+    image: rhasspy/wyoming-piper:latest
+    container_name: piper
+    restart: unless-stopped
+    networks:
+      - ai-net
+    volumes:
+      - /volume1/docker/piper/data:/data
+
+    ports:
+      - "10200:10200"
+
+    command:
+      - --voice
+      - jarvis-high
+
+networks:
+  ai-net:
+    external: true
