@@ -1,0 +1,20 @@
+services:
+  openwakeword:
+    image: rhasspy/wyoming-openwakeword:latest
+    container_name: openwakeword
+    restart: unless-stopped
+    networks:
+      - ai-net
+    volumes:
+      - /volume1/docker/openwakeword/data:/data
+
+    ports:
+      - "10400:10400"
+
+    command:
+      - --preload-model
+      - ok_nabu
+
+networks:
+  ai-net:
+    external: true
