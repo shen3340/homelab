@@ -1,0 +1,58 @@
+services:
+  bookstack:
+    image: linuxserver/bookstack:latest
+    container_name: bookstack
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+      - APP_URL=https://docs.shen3340.com
+      - APP_KEY=${APP_KEY}
+
+      - DB_HOST=bookstack-db
+      - DB_PORT=3306
+      - DB_USERNAME=bookstack
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_DATABASE=bookstack
+
+    volumes:
+      - /volume1/docker/bookstack/config:/config
+
+    ports:
+      - 6876:80
+
+    restart: unless-stopped
+
+    depends_on:
+      - bookstack-db
+
+    networks:
+      - internal
+
+  bookstack-db:
+    image: linuxserver/mariadb:latest
+    container_name: bookstack-db
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=bookstack
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+
+    volumes:
+      - /volume1/docker/bookstack/database:/config
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true
