@@ -1,0 +1,43 @@
+services:
+  webhook-dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: webhook-dispatcher
+
+    restart: unless-stopped
+
+    environment:
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
+
+      GITHUB_REPOSITORY: shen3340/homelab
+      GITHUB_BRANCH: refs/heads/main
+
+      PORTAINER_WEBHOOKS_JSON: >-
+        {
+          "jellyfin": "http://portainer:9000/api/stacks/webhooks/${PORTAINER_WEBHOOK_JELLYFIN}"
+        }
+
+      PORTAINER_TIMEOUT: 10
+      LOG_LEVEL: INFO
+
+    networks:
+      - internal
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  internal:
+    external: true
