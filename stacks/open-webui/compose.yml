@@ -1,0 +1,25 @@
+services:
+  open-webui:
+    image: openwebui/open-webui:latest
+    container_name: open-webui
+    restart: unless-stopped
+
+    ports:
+      - 3000:8080
+
+    volumes:
+      - /volume1/docker/open-webui:/app/backend/data
+
+    environment:
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - RAG_EMBEDDING_ENGINE=ollama
+      - RAG_EMBEDDING_MODEL=nomic-embed-text
+      - OLLAMA_BASE_URL=http://192.168.50.50:11434
+      - RAG_OLLAMA_BASE_URL=http://192.168.50.50:11434
+    networks:
+      - ai-net
+
+networks:
+  ai-net:
+    external: true
