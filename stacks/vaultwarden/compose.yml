@@ -1,0 +1,33 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+
+    restart: unless-stopped
+
+    environment:
+      TZ: "America/New_York"
+      SIGNUPS_ALLOWED: "false"
+      DOMAIN: ${DOMAIN}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+
+      SMTP_HOST: "smtp.resend.com"
+      SMTP_FROM: "noreply@shen3340.com"
+      SMTP_FROM_NAME: "Vaultwarden"
+      SMTP_SECURITY: "starttls"
+      SMTP_PORT: "587"
+      SMTP_USERNAME: "resend"
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+
+    volumes:
+      - /volume1/docker/vaultwarden/data:/data
+
+    ports:
+      - "8082:80"
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true
