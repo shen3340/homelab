@@ -1,0 +1,50 @@
+services:
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: vikunja
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: https://tasks.shen3340.com
+
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_HOST: postgres
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_DATABASE_USER: vikunja
+      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+
+      VIKUNJA_SERVICE_SECRET: ${VIKUNJA_SERVICE_SECRET}
+
+    volumes:
+      - /volume1/docker/vikunja/files:/app/vikunja/files
+
+    depends_on:
+      - postgres
+
+    restart: unless-stopped
+
+    networks:
+      - proxy
+      - internal
+
+  postgres:
+    image: postgres:latest
+    container_name: vikunja-postgres
+
+    environment:
+      POSTGRES_DB: vikunja
+      POSTGRES_USER: vikunja
+      POSTGRES_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+
+    volumes:
+      - /volume1/docker/vikunja/postgres:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+
+networks:
+  proxy:
+    external: true
+
+  internal:
+    external: true
