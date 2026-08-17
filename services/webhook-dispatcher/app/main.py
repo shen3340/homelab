@@ -18,8 +18,15 @@ GITHUB_WEBHOOK_SECRET = os.environ["GITHUB_WEBHOOK_SECRET"]
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "shen3340/homelab")
 GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "refs/heads/main")
 
-PORTAINER_WEBHOOKS: dict[str, str] = json.loads(
-    os.getenv("PORTAINER_WEBHOOKS_JSON", "{}")
+PORTAINER_WEBHOOKS: dict[str, str] = {
+    key.removeprefix("PORTAINER_WEBHOOK_").lower(): value
+    for key, value in os.environ.items()
+    if key.startswith("PORTAINER_WEBHOOK_") and value
+}
+
+PORTAINER_URL = os.getenv(
+    "PORTAINER_URL",
+    "http://portainer:9000",
 )
 
 PORTAINER_TIMEOUT = float(os.getenv("PORTAINER_TIMEOUT", "10"))
@@ -114,9 +121,13 @@ def get_affected_stacks(paths: set[str]) -> set[str]:
 
 async def trigger_portainer_stack(
     stack_name: str,
-    webhook_url: str,
+    webhook_key: str,
 ) -> bool:
     """Trigger one Portainer GitOps webhook."""
+
+    webhook_url = (
+        f"{PORTAINER_URL}/api/stacks/webhooks/{webhook_key}"
+    )
 
     logger.info(
         "Triggering Portainer stack=%s",
@@ -153,8 +164,6 @@ async def trigger_portainer_stack(
             type(exc).__name__,
         )
         return False
-
-
 # endregion
 
 # region Routes
@@ -328,9 +337,9 @@ async def github_webhook(
     unregistered: list[str] = []
 
     for stack_name in sorted(affected_stacks):
-        webhook_url = PORTAINER_WEBHOOKS.get(stack_name)
+        webhook_key = PORTAINER_WEBHOOKS.get(stack_name)
 
-        if not webhook_url:
+        if not webhook_key:
             logger.warning(
                 "No Portainer webhook registered stack=%s",
                 stack_name,
@@ -341,7 +350,7 @@ async def github_webhook(
 
         success = await trigger_portainer_stack(
             stack_name=stack_name,
-            webhook_url=webhook_url,
+            webhook_key=webhook_key,
         )
 
         if success:
