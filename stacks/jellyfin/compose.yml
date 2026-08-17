@@ -11,6 +11,8 @@ services:
       - /volume1/media:/media
     networks:
       - proxy
+    environment:
+      - TZ=America/new_york
 
 networks:
   proxy:
