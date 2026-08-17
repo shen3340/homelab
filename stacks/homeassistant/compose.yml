@@ -1,7 +1,7 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: home-assistant/home-assistant:latest
+    image: homeassistant/home-assistant:latest
     restart: unless-stopped
     ports:
       - "8123:8123"
