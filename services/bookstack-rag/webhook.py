@@ -52,11 +52,12 @@ def validate_source_ip(
             detail="Unable to determine request source",
         )
 
-    if request.client.host != BOOKSTACK_WEBHOOK_IP:
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid request source",
-        )
+    if BOOKSTACK_WEBHOOK_IP:
+        if request.client.host != BOOKSTACK_WEBHOOK_IP:
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid request source",
+            )
 
 
 # endregion
