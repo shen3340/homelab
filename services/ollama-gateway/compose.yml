@@ -1,0 +1,47 @@
+services:
+  ollama-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ollama-gateway
+    restart: unless-stopped
+
+    environment:
+      PRIMARY_OLLAMA: ${PRIMARY_OLLAMA}
+      BACKUP_OLLAMA: ${BACKUP_OLLAMA}
+
+      BACKUP_MAC: ${BACKUP_MAC}
+      WOL_BROADCAST: ${WOL_BROADCAST}
+      WOL_PORT: "9"
+
+      PRIMARY_HEALTH_TIMEOUT: "3"
+      BACKUP_HEALTH_TIMEOUT: "3"
+
+      BACKUP_STARTUP_TIMEOUT: "120"
+      BACKUP_POLL_INTERVAL: "2"
+
+      WOL_COOLDOWN: "60"
+
+    networks:
+      - ai-net
+
+    ports:
+      - "11435:11434"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:11434/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  ai-net:
+    external: true
