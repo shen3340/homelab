@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+python-dotenv
+qdrant-client
+langchain-text-splitters
+fastapi
+pydantic
+uvicorn
