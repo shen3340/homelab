@@ -53,6 +53,54 @@ services:
     networks:
       - internal
 
+  rag-webhook:
+    build:
+      context: ../../services/bookstack-rag
+      dockerfile: Dockerfile
+
+    container_name: rag-webhook
+
+    restart: unless-stopped
+
+    environment:
+      BOOKSTACK_URL: http://bookstack
+      BOOKSTACK_TOKEN_ID: ${BOOKSTACK_TOKEN_ID}
+      BOOKSTACK_TOKEN_SECRET: ${BOOKSTACK_TOKEN_SECRET}
+
+      QDRANT_URL: http://qdrant:6333
+
+      OLLAMA_URL: http://192.168.50.50:11434
+      EMBED_MODEL: nomic-embed-text
+
+      QDRANT_COLLECTION: bookstack
+      CHUNK_SIZE: 2000
+      CHUNK_OVERLAP: 300
+
+      WEBHOOK_HOST: 0.0.0.0
+      WEBHOOK_PORT: 8000
+
+      BOOKSTACK_WEBHOOK_IP:
+
+    networks:
+      - internal
+      - ai-net
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 networks:
   internal:
+    external: true
+
+  ai-net:
     external: true
