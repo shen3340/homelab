@@ -26,7 +26,6 @@ WEBHOOK_PORT = int(
 
 BOOKSTACK_WEBHOOK_IP = os.getenv(
     "BOOKSTACK_WEBHOOK_IP",
-    "172.19.0.6",
 )
 
 # endregion
@@ -46,14 +45,28 @@ def validate_source_ip(
     request: Request,
 ) -> None:
 
+    client_ip = request.client.host if request.client else None
+
     if request.client is None:
+        print(
+            "bookstack_webhook forbidden reason=no_client",
+            flush=True,
+        )
+
         raise HTTPException(
             status_code=403,
             detail="Unable to determine request source",
         )
 
     if BOOKSTACK_WEBHOOK_IP:
-        if request.client.host != BOOKSTACK_WEBHOOK_IP:
+        if client_ip != BOOKSTACK_WEBHOOK_IP:
+            print(
+                f"bookstack_webhook forbidden "
+                f"source_ip={client_ip} "
+                f"allowed_ip={BOOKSTACK_WEBHOOK_IP}",
+                flush=True,
+            )
+
             raise HTTPException(
                 status_code=403,
                 detail="Invalid request source",
