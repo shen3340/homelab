@@ -69,7 +69,7 @@ services:
 
       QDRANT_URL: http://qdrant:6333
 
-      OLLAMA_URL: http://192.168.50.50:11434
+      OLLAMA_URL: http://ollama-gateway:11434
       EMBED_MODEL: nomic-embed-text
 
       QDRANT_COLLECTION: bookstack
