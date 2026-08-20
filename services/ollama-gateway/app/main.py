@@ -6,20 +6,24 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import httpx
-from fastapi import FastAPI, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
+
+# ============================================================
+# Configuration
+# ============================================================
 
 PRIMARY_OLLAMA = os.getenv(
     "PRIMARY_OLLAMA",
 ).rstrip("/")
 
 BACKUP_OLLAMA = os.getenv(
-    "BACKUP_OLLAMA"
+    "BACKUP_OLLAMA",
 ).rstrip("/")
 
-BACKUP_MAC = os.getenv(
-    "BACKUP_MAC",
+PRIMARY_MAC = os.getenv(
+    "PRIMARY_MAC",
 )
 
 WOL_BROADCAST = os.getenv(
@@ -47,17 +51,10 @@ BACKUP_HEALTH_TIMEOUT = float(
     )
 )
 
-BACKUP_STARTUP_TIMEOUT = float(
+PRIMARY_RECOVERY_INTERVAL = float(
     os.getenv(
-        "BACKUP_STARTUP_TIMEOUT",
-        "120",
-    )
-)
-
-BACKUP_POLL_INTERVAL = float(
-    os.getenv(
-        "BACKUP_POLL_INTERVAL",
-        "2",
+        "PRIMARY_RECOVERY_INTERVAL",
+        "5",
     )
 )
 
@@ -69,16 +66,29 @@ WOL_COOLDOWN = float(
 )
 
 
+# ============================================================
+# Global state
+# ============================================================
+
 client: httpx.AsyncClient | None = None
+
+primary_available = False
+
+primary_recovery_task: asyncio.Task | None = None
 
 last_wol_time = 0.0
 
-startup_lock = asyncio.Lock()
+state_lock = asyncio.Lock()
 
+
+# ============================================================
+# Application lifecycle
+# ============================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global client
+    global primary_recovery_task
 
     client = httpx.AsyncClient(
         timeout=httpx.Timeout(
@@ -90,7 +100,35 @@ async def lifespan(app: FastAPI):
         follow_redirects=True,
     )
 
+    # Determine initial primary state.
+    await update_primary_state()
+
+    # Start background recovery monitor.
+    primary_recovery_task = asyncio.create_task(
+        primary_recovery_monitor()
+    )
+
+    print(
+        f"Primary: {PRIMARY_OLLAMA}"
+    )
+
+    print(
+        f"Backup: {BACKUP_OLLAMA}"
+    )
+
+    print(
+        f"Primary available: {primary_available}"
+    )
+
     yield
+
+    if primary_recovery_task:
+        primary_recovery_task.cancel()
+
+        try:
+            await primary_recovery_task
+        except asyncio.CancelledError:
+            pass
 
     await client.aclose()
 
@@ -101,9 +139,15 @@ app = FastAPI(
 )
 
 
+# ============================================================
+# Helpers
+# ============================================================
+
 def get_client() -> httpx.AsyncClient:
     if client is None:
-        raise RuntimeError("HTTP client not initialized")
+        raise RuntimeError(
+            "HTTP client not initialized"
+        )
 
     return client
 
@@ -127,19 +171,55 @@ async def ollama_health(
         return False
 
 
+async def update_primary_state() -> bool:
+    global primary_available
+
+    available = await ollama_health(
+        PRIMARY_OLLAMA,
+        PRIMARY_HEALTH_TIMEOUT,
+    )
+
+    async with state_lock:
+        previous = primary_available
+        primary_available = available
+
+    if available and not previous:
+        print(
+            "Primary Ollama is available. "
+            "Using primary for new requests."
+        )
+
+    elif not available and previous:
+        print(
+            "Primary Ollama became unavailable. "
+            "Failover is active."
+        )
+
+    return available
+
+
+# ============================================================
+# Wake-on-LAN
+# ============================================================
+
 def send_wol() -> None:
-    mac = BACKUP_MAC.replace(":", "").replace("-", "")
+    mac = (
+        PRIMARY_MAC
+        .replace(":", "")
+        .replace("-", "")
+        .strip()
+    )
 
     if len(mac) != 12:
         raise ValueError(
-            f"Invalid MAC address: {BACKUP_MAC}"
+            f"Invalid MAC address: {PRIMARY_MAC}"
         )
 
     try:
         mac_bytes = bytes.fromhex(mac)
     except ValueError as exc:
         raise ValueError(
-            f"Invalid MAC address: {BACKUP_MAC}"
+            f"Invalid MAC address: {PRIMARY_MAC}"
         ) from exc
 
     packet = (
@@ -167,106 +247,127 @@ def send_wol() -> None:
             ),
         )
 
+        print(
+            f"Sent Wake-on-LAN to {PRIMARY_MAC}"
+        )
+
     finally:
         sock.close()
 
 
-async def wake_backup() -> None:
+async def wake_primary_if_needed() -> None:
     global last_wol_time
 
-    async with startup_lock:
+    now = time.monotonic()
 
-        # Someone else may have started the backup while
-        # this request was waiting for the lock.
-        if await ollama_health(
-            BACKUP_OLLAMA,
-            BACKUP_HEALTH_TIMEOUT,
-        ):
-            return
-
-        now = time.monotonic()
-
-        if (
+    async with state_lock:
+        cooldown_active = (
             now - last_wol_time
-            >= WOL_COOLDOWN
-        ):
-            print(
-                "Backup unavailable. Sending Wake-on-LAN."
-            )
-
-            send_wol()
-
-            last_wol_time = now
-
-        else:
-            print(
-                "Backup unavailable, but WoL cooldown active."
-            )
-
-        deadline = (
-            time.monotonic()
-            + BACKUP_STARTUP_TIMEOUT
+            < WOL_COOLDOWN
         )
 
-        while time.monotonic() < deadline:
+    if cooldown_active:
+        return
 
-            if await ollama_health(
-                BACKUP_OLLAMA,
-                BACKUP_HEALTH_TIMEOUT,
-            ):
+    async with state_lock:
+        last_wol_time = now
+
+    try:
+        send_wol()
+
+    except Exception as exc:
+        print(
+            f"Wake-on-LAN failed: {exc}"
+        )
+
+
+# ============================================================
+# Background primary recovery
+# ============================================================
+
+async def primary_recovery_monitor() -> None:
+    global primary_available
+
+    while True:
+        try:
+            available = await ollama_health(
+                PRIMARY_OLLAMA,
+                PRIMARY_HEALTH_TIMEOUT,
+            )
+
+            async with state_lock:
+                previous = primary_available
+                primary_available = available
+
+            if available and not previous:
                 print(
-                    "Backup Ollama is ready."
+                    "Primary Ollama recovered. "
+                    "New requests will use primary."
                 )
 
-                return
+            elif not available and previous:
+                print(
+                    "Primary Ollama unavailable. "
+                    "Backup is active."
+                )
 
             await asyncio.sleep(
-                BACKUP_POLL_INTERVAL
+                PRIMARY_RECOVERY_INTERVAL
             )
 
-        raise RuntimeError(
-            "Backup Ollama did not become available "
-            f"within {BACKUP_STARTUP_TIMEOUT} seconds."
-        )
+        except asyncio.CancelledError:
+            raise
 
+        except Exception as exc:
+            print(
+                f"Primary recovery monitor error: {exc}"
+            )
+
+            await asyncio.sleep(
+                PRIMARY_RECOVERY_INTERVAL
+            )
+
+# ============================================================
+# Backend selection
+# ============================================================
 
 async def select_backend() -> str:
-    # Primary always gets preference.
-    if await ollama_health(
-        PRIMARY_OLLAMA,
-        PRIMARY_HEALTH_TIMEOUT,
-    ):
+    """
+    Primary is preferred.
+
+    If primary is unavailable:
+      1. Send WoL to primary.
+      2. Immediately use backup.
+
+    Do not wait for primary recovery.
+    """
+
+    global primary_available
+
+    async with state_lock:
+        available = primary_available
+
+    if available:
         return PRIMARY_OLLAMA
 
-    print(
-        "Primary Ollama unavailable."
+    # Primary is unavailable.
+    # Attempt WoL without waiting.
+    asyncio.create_task(
+        wake_primary_if_needed()
     )
 
-    # Backup is already awake.
-    if await ollama_health(
-        BACKUP_OLLAMA,
-        BACKUP_HEALTH_TIMEOUT,
-    ):
-        print(
-            "Using backup Ollama."
-        )
-
-        return BACKUP_OLLAMA
-
-    # Backup needs to be awakened.
-    print(
-        "Backup Ollama unavailable. "
-        "Attempting Wake-on-LAN."
-    )
-
-    await wake_backup()
-
+    # Immediately fail over to backup.
     return BACKUP_OLLAMA
 
+
+# ============================================================
+# Headers
+# ============================================================
 
 def filter_request_headers(
     headers: httpx.Headers,
 ) -> dict[str, str]:
+
     excluded = {
         "host",
         "content-length",
@@ -282,6 +383,7 @@ def filter_request_headers(
 def filter_response_headers(
     headers: httpx.Headers,
 ) -> dict[str, str]:
+
     excluded = {
         "content-length",
         "transfer-encoding",
@@ -294,6 +396,10 @@ def filter_response_headers(
         if key.lower() not in excluded
     }
 
+
+# ============================================================
+# Health endpoints
+# ============================================================
 
 @app.get("/health")
 async def gateway_health():
@@ -311,6 +417,11 @@ async def gateway_health():
         "status": "ok",
         "primary": primary,
         "backup": backup,
+        "active_backend": (
+            "primary"
+            if primary
+            else "backup"
+        ),
     }
 
 
@@ -321,27 +432,31 @@ async def backend_status():
         PRIMARY_HEALTH_TIMEOUT,
     )
 
-    if primary:
-        return {
-            "backend": "primary",
-            "url": PRIMARY_OLLAMA,
-        }
-
     backup = await ollama_health(
         BACKUP_OLLAMA,
         BACKUP_HEALTH_TIMEOUT,
     )
 
-    if backup:
-        return {
-            "backend": "backup",
-            "url": BACKUP_OLLAMA,
-        }
-
     return {
-        "backend": "offline",
+        "primary": {
+            "available": primary,
+            "url": PRIMARY_OLLAMA,
+        },
+        "backup": {
+            "available": backup,
+            "url": BACKUP_OLLAMA,
+        },
+        "active_backend": (
+            "primary"
+            if primary
+            else "backup"
+        ),
     }
 
+
+# ============================================================
+# Generic Ollama proxy
+# ============================================================
 
 @app.api_route(
     "/{path:path}",
@@ -373,67 +488,102 @@ async def proxy(
     )
 
     try:
-        upstream_request = get_client().build_request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            content=body,
-        )
-
-        upstream_response = await get_client().send(
-            upstream_request,
-            stream=True,
-        )
-
-    except httpx.HTTPError as exc:
-
-        # If primary died after health check,
-        # retry the request through backup.
-
-        if backend == PRIMARY_OLLAMA:
-
-            print(
-                "Primary request failed. "
-                "Failing over to backup."
-            )
-
-            await wake_backup()
-
-            backend = BACKUP_OLLAMA
-
-            url = f"{backend}/{path}"
-
-            if request.url.query:
-                url += f"?{request.url.query}"
-
-            upstream_request = get_client().build_request(
+        upstream_request = (
+            get_client().build_request(
                 method=request.method,
                 url=url,
                 headers=headers,
                 content=body,
             )
+        )
+
+        upstream_response = (
+            await get_client().send(
+                upstream_request,
+                stream=True,
+            )
+        )
+
+    except httpx.HTTPError as exc:
+
+        # Primary may have disappeared after the
+        # background health check.
+        #
+        # Immediately retry through backup.
+
+        if backend == PRIMARY_OLLAMA:
+
+            print(
+                "Primary request failed. "
+                "Retrying through backup."
+            )
+
+            async with state_lock:
+                global primary_available
+                primary_available = False
+
+            # Trigger WoL without waiting.
+            asyncio.create_task(
+                wake_primary_if_needed()
+            )
+
+            backup_url = (
+                f"{BACKUP_OLLAMA}/{path}"
+            )
+
+            if request.url.query:
+                backup_url += (
+                    f"?{request.url.query}"
+                )
+
+            backup_request = (
+                get_client().build_request(
+                    method=request.method,
+                    url=backup_url,
+                    headers=headers,
+                    content=body,
+                )
+            )
 
             try:
-                upstream_response = await get_client().send(
-                    upstream_request,
-                    stream=True,
+                upstream_response = (
+                    await get_client().send(
+                        backup_request,
+                        stream=True,
+                    )
                 )
 
             except httpx.HTTPError as backup_exc:
-                raise Response(
-                    content=str(backup_exc),
+                return JSONResponse(
                     status_code=502,
+                    content={
+                        "error": (
+                            "Both Ollama backends "
+                            "are unavailable."
+                        ),
+                        "detail": str(
+                            backup_exc
+                        ),
+                    },
                 )
 
         else:
-            raise Response(
-                content=str(exc),
+            return JSONResponse(
                 status_code=502,
+                content={
+                    "error": (
+                        "Backup Ollama "
+                        "is unavailable."
+                    ),
+                    "detail": str(exc),
+                },
             )
 
     async def stream_response() -> AsyncIterator[bytes]:
         try:
-            async for chunk in upstream_response.aiter_raw():
+            async for chunk in (
+                upstream_response.aiter_raw()
+            ):
                 yield chunk
 
         finally:
