@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY rag.py .
 COPY webhook.py .
+COPY mcp_server.py .
 
 RUN useradd \
     --create-home \
@@ -20,5 +21,6 @@ RUN useradd \
 USER rag
 
 EXPOSE 8000
+EXPOSE 8001
 
 CMD ["uvicorn", "webhook:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -258,6 +258,53 @@ def create_qdrant_collection(client, vector_size):
 
 # endregion
 
+# region Search 
+
+def search_documents(
+    query: str,
+    limit: int = 5,
+):
+    """
+    Search existing BookStack embeddings in Qdrant.
+    """
+
+    client = get_qdrant_client()
+
+    if not collection_exists(client):
+        raise RuntimeError(
+            f"Qdrant collection '{COLLECTION}' does not exist."
+        )
+
+    vector = create_embedding(query)
+
+    results = client.query_points(
+        collection_name=COLLECTION,
+        query=vector,
+        limit=limit,
+        with_payload=True,
+    )
+
+    documents = []
+
+    for result in results.points:
+        payload = result.payload or {}
+
+        documents.append(
+            {
+                "score": result.score,
+                "title": payload.get("title"),
+                "text": payload.get("text"),
+                "url": payload.get("url"),
+                "page_id": payload.get("page_id"),
+                "chunk_index": payload.get("chunk_index"),
+                "chunk_count": payload.get("chunk_count"),
+                "updated_at": payload.get("updated_at"),
+            }
+        )
+
+    return documents
+
+# endregion
 
 # region Point IDs
 def create_point_id(

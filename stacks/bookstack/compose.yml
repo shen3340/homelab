@@ -98,6 +98,43 @@ services:
       retries: 3
       start_period: 10s
 
+  rag-mcp:
+    build:
+      context: ../../services/bookstack-rag
+      dockerfile: Dockerfile
+
+    container_name: rag-mcp
+
+    restart: unless-stopped
+
+    command:
+      - python
+      - mcp_server.py
+
+    environment:
+      BOOKSTACK_URL: ${BOOKSTACK_URL}
+      BOOKSTACK_TOKEN_ID: ${BOOKSTACK_TOKEN_ID}
+      BOOKSTACK_TOKEN_SECRET: ${BOOKSTACK_TOKEN_SECRET}
+
+      QDRANT_URL: ${QDRANT_URL}
+
+      OLLAMA_URL: ${OLLAMA_URL}
+      EMBED_MODEL: nomic-embed-text
+
+      QDRANT_COLLECTION: bookstack
+
+      CHUNK_SIZE: 2000
+      CHUNK_OVERLAP: 300
+
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8001
+
+    ports:
+      - "8001:8001"
+
+    networks:
+      - internal
+      - ai-net
 networks:
   internal:
     external: true
