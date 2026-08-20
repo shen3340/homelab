@@ -58,19 +58,18 @@ def validate_source_ip(
             detail="Unable to determine request source",
         )
 
-    if BOOKSTACK_WEBHOOK_IP:
-        if client_ip != BOOKSTACK_WEBHOOK_IP:
-            print(
-                f"bookstack_webhook forbidden "
-                f"source_ip={client_ip} "
-                f"allowed_ip={BOOKSTACK_WEBHOOK_IP}",
-                flush=True,
-            )
+    if BOOKSTACK_WEBHOOK_IP and client_ip != BOOKSTACK_WEBHOOK_IP:
+        print(
+            f"bookstack_webhook forbidden "
+            f"source_ip={client_ip} "
+            f"allowed_ip={BOOKSTACK_WEBHOOK_IP}",
+            flush=True,
+        )
 
-            raise HTTPException(
-                status_code=403,
-                detail="Invalid request source",
-            )
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid request source",
+        )
 
 
 # endregion
