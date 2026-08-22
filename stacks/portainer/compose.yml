@@ -1,0 +1,16 @@
+services:
+  portainer:
+    image: portainer/portainer-ee:latest
+    container_name: portainer
+
+    restart: unless-stopped
+
+    environment:
+      PORTAINER_LICENSE_KEY: ${PORTAINER_LICENSE_KEY}
+
+    ports:
+      - "7001:9443"
+
+    volumes:
+      - /volume1/docker/portainer:/data
+      - /var/run/docker.sock:/var/run/docker.sock
