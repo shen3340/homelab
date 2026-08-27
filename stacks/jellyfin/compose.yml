@@ -10,10 +10,13 @@ services:
       - /volume1/docker/jellyfin/cache:/cache
       - /volume1/media:/media
     networks:
+      - media
       - proxy
     environment:
       - TZ=America/new_york
 
 networks:
+  media:
+    external: true
   proxy:
     external: true
