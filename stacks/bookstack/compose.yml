@@ -31,6 +31,13 @@ services:
     networks:
       - internal
 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   bookstack-db:
     image: linuxserver/mariadb:latest
     container_name: bookstack-db
@@ -134,12 +141,12 @@ services:
       - internal
       - ai-net
 
-  rag-index:
+  rag-ingest:
     build:
       context: ../../services/bookstack-rag
       dockerfile: Dockerfile
 
-    container_name: rag-index
+    container_name: rag-ingest
 
     restart: "no"
 
@@ -161,6 +168,10 @@ services:
       QDRANT_COLLECTION: bookstack
       CHUNK_SIZE: 2000
       CHUNK_OVERLAP: 300
+
+    depends_on:
+      bookstack:
+        condition: service_healthy
 
     networks:
       - internal
