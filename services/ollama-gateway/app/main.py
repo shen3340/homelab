@@ -115,9 +115,7 @@ async def lifespan(app: FastAPI):
     primary_recovery_task = asyncio.create_task(primary_recovery_monitor())
 
     print(f"Primary: {PRIMARY_OLLAMA}")
-
     print(f"Backup: {BACKUP_OLLAMA}")
-
     print(f"Primary available: {primary_available}")
 
     yield
@@ -256,18 +254,15 @@ async def wake_primary_if_needed() -> None:
     now = time.monotonic()
 
     async with state_lock:
-        cooldown_active = now - last_wol_time < WOL_COOLDOWN
+        if now - last_wol_time < WOL_COOLDOWN:
+            print(
+                "WoL skipped: cooldown active. "
+                f"Last WoL: {last_wol_time:.2f}, "
+                f"now: {now:.2f}, "
+                f"cooldown: {WOL_COOLDOWN}s"
+            )
+            return
 
-    if cooldown_active:
-        print(
-            f"WoL skipped: cooldown active. "
-            f"Last WoL: {last_wol_time:.2f}, "
-            f"now: {now:.2f}, "
-            f"cooldown: {WOL_COOLDOWN}s"
-        )
-        return
-
-    async with state_lock:
         last_wol_time = now
 
     try:
@@ -330,13 +325,12 @@ async def select_backend() -> str:
     Do not wait for primary recovery.
     """
 
-    global primary_available
-
     async with state_lock:
         available = primary_available
 
     if available:
         print(f"Primary available: {PRIMARY_OLLAMA}. Using primary.")
+
         return PRIMARY_OLLAMA
 
     print(f"Primary unavailable: {PRIMARY_OLLAMA}. Triggering WoL and using backup.")
@@ -354,7 +348,6 @@ async def select_backend() -> str:
 def filter_request_headers(
     headers: httpx.Headers,
 ) -> dict[str, str]:
-
     excluded = {
         "host",
         "content-length",
@@ -366,7 +359,6 @@ def filter_request_headers(
 def filter_response_headers(
     headers: httpx.Headers,
 ) -> dict[str, str]:
-
     excluded = {
         "content-length",
         "transfer-encoding",
@@ -447,6 +439,8 @@ async def proxy(
     path: str,
     request: Request,
 ):
+    global primary_available
+
     backend = await select_backend()
 
     url = f"{backend}/{path}"
@@ -481,7 +475,6 @@ async def proxy(
             print("Primary request failed. Retrying through backup.")
 
             async with state_lock:
-                global primary_available
                 primary_available = False
 
             # Trigger WoL without waiting.

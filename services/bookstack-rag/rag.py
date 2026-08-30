@@ -258,7 +258,8 @@ def create_qdrant_collection(client, vector_size):
 
 # endregion
 
-# region Search 
+# region Search
+
 
 def search_documents(
     query: str,
@@ -271,9 +272,7 @@ def search_documents(
     client = get_qdrant_client()
 
     if not collection_exists(client):
-        raise RuntimeError(
-            f"Qdrant collection '{COLLECTION}' does not exist."
-        )
+        raise RuntimeError(f"Qdrant collection '{COLLECTION}' does not exist.")
 
     vector = create_embedding(query)
 
@@ -304,7 +303,9 @@ def search_documents(
 
     return documents
 
+
 # endregion
+
 
 # region Point IDs
 def create_point_id(

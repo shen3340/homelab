@@ -79,8 +79,6 @@ services:
       WEBHOOK_HOST: 0.0.0.0
       WEBHOOK_PORT: 8000
 
-      BOOKSTACK_WEBHOOK_IP:
-
     networks:
       - internal
       - ai-net
@@ -135,6 +133,39 @@ services:
     networks:
       - internal
       - ai-net
+
+  rag-index:
+    build:
+      context: ../../services/bookstack-rag
+      dockerfile: Dockerfile
+
+    container_name: rag-index
+
+    restart: "no"
+
+    command:
+      - python
+      - rag.py
+      - --full
+
+    environment:
+      BOOKSTACK_URL: ${BOOKSTACK_URL}
+      BOOKSTACK_TOKEN_ID: ${BOOKSTACK_TOKEN_ID}
+      BOOKSTACK_TOKEN_SECRET: ${BOOKSTACK_TOKEN_SECRET}
+
+      QDRANT_URL: ${QDRANT_URL}
+
+      OLLAMA_URL: ${OLLAMA_URL}
+      EMBED_MODEL: nomic-embed-text
+
+      QDRANT_COLLECTION: bookstack
+      CHUNK_SIZE: 2000
+      CHUNK_OVERLAP: 300
+
+    networks:
+      - internal
+      - ai-net
+
 networks:
   internal:
     external: true

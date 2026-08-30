@@ -1,9 +1,7 @@
 import os
 
 from fastmcp import FastMCP
-
 from rag import search_documents
-
 
 MCP_HOST = os.getenv(
     "MCP_HOST",
