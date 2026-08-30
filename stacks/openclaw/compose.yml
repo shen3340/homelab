@@ -12,6 +12,13 @@ services:
       OPENCLAW_GATEWAY_PORT: 18789
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
 
+      RADARR_URL: "http://radarr:7878"
+      RADARR_API_KEY: ${RADARR_API_KEY}
+      RADARR_DEFAULT_PROFILE: "HD-1080p"
+      RADARR_DEFAULT_ROOT: "/data/movies"
+
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+
     volumes:
       - openclaw-state:/home/node/.openclaw
       - /volume1/docker/openclaw/workspace:/home/node/.openclaw/workspace
@@ -22,6 +29,7 @@ services:
       - internal
       - proxy
       - ai-net
+      - media
 
 networks:
   internal:
@@ -31,6 +39,9 @@ networks:
     external: true
 
   ai-net:
+    external: true
+
+  media:
     external: true
 
 volumes:
