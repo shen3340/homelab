@@ -1,0 +1,37 @@
+services:
+  openclaw-gateway:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-gateway
+
+    environment:
+      HOME: /home/node
+      NODE_ENV: production
+      TERM: xterm-256color
+
+      OPENCLAW_GATEWAY_BIND: lan
+      OPENCLAW_GATEWAY_PORT: 18789
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+
+    volumes:
+      - openclaw-state:/home/node/.openclaw
+      - /volume1/docker/openclaw/workspace:/home/node/.openclaw/workspace
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+      - proxy
+      - ai-net
+
+networks:
+  internal:
+    external: true
+
+  proxy:
+    external: true
+
+  ai-net:
+    external: true
+
+volumes:
+  openclaw-state:
