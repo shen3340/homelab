@@ -28,7 +28,6 @@ PORTAINER_WEBHOOKS: dict[str, str] = {
 
 PORTAINER_URL = os.getenv(
     "PORTAINER_URL",
-    "http://portainer:9000",
 )
 
 PORTAINER_TIMEOUT = float(os.getenv("PORTAINER_TIMEOUT", "10"))

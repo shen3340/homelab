@@ -9,8 +9,19 @@ services:
       PORTAINER_LICENSE_KEY: ${PORTAINER_LICENSE_KEY}
 
     ports:
-      - "7001:9443"
+      - "7000:9443"
 
     volumes:
       - /volume1/docker/portainer:/data
       - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - docker_default
+      - internal
+
+networks:
+  docker_default:
+    external: true
+
+  internal:
+    external: true
