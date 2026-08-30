@@ -166,7 +166,6 @@ def bookstack_webhook(
         "page_id": int(page_id),
     }
 
-
 # endregion
 
 # region Main
