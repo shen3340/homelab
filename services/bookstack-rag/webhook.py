@@ -23,11 +23,6 @@ WEBHOOK_PORT = int(
         "8000",
     )
 )
-
-BOOKSTACK_WEBHOOK_IP = os.getenv(
-    "BOOKSTACK_WEBHOOK_IP",
-)
-
 # endregion
 
 # region FastAPI
@@ -38,42 +33,6 @@ app = FastAPI(
 )
 
 # endregion
-
-
-# region Validating Source IP
-def validate_source_ip(
-    request: Request,
-) -> None:
-
-    client_ip = request.client.host if request.client else None
-
-    if request.client is None:
-        print(
-            "bookstack_webhook forbidden reason=no_client",
-            flush=True,
-        )
-
-        raise HTTPException(
-            status_code=403,
-            detail="Unable to determine request source",
-        )
-
-    if BOOKSTACK_WEBHOOK_IP and client_ip != BOOKSTACK_WEBHOOK_IP:
-        print(
-            f"bookstack_webhook forbidden "
-            f"source_ip={client_ip} "
-            f"allowed_ip={BOOKSTACK_WEBHOOK_IP}",
-            flush=True,
-        )
-
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid request source",
-        )
-
-
-# endregion
-
 
 # region Request model
 class BookStackWebhook(BaseModel):
@@ -168,8 +127,6 @@ def bookstack_webhook(
     payload: BookStackWebhook,
     background_tasks: BackgroundTasks,
 ):
-    validate_source_ip(request)
-
     event = payload.event
 
     if event not in {
@@ -207,7 +164,6 @@ def bookstack_webhook(
         "event": event,
         "page_id": int(page_id),
     }
-
 
 # endregion
 

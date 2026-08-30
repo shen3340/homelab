@@ -79,8 +79,6 @@ services:
       WEBHOOK_HOST: 0.0.0.0
       WEBHOOK_PORT: 8000
 
-      BOOKSTACK_WEBHOOK_IP:
-
     networks:
       - internal
       - ai-net
