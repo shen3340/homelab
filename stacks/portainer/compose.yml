@@ -16,12 +16,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
     networks:
-      - docker_default
       - internal
 
 networks:
-  docker_default:
-    external: true
-
   internal:
     external: true
