@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
 
     volumes:
-      - /volume1/docker/vikunja/postgres:/var/lib/postgresql
+      - /volume1/databases/postgres:/var/lib/postgresql
 
     restart: unless-stopped
 
