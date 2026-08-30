@@ -27,9 +27,6 @@ services:
     volumes:
       - /volume1/docker/pgadmin:/var/lib/pgadmin
 
-    ports:
-      - "5050:80"
-
     restart: unless-stopped
 
     networks:
