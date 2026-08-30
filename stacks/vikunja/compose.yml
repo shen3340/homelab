@@ -2,6 +2,7 @@ services:
   vikunja:
     image: vikunja/vikunja:latest
     container_name: vikunja
+
     environment:
       VIKUNJA_SERVICE_PUBLICURL: https://tasks.shen3340.com
 
@@ -27,7 +28,7 @@ services:
 
   postgres:
     image: postgres:latest
-    container_name: vikunja-postgres
+    container_name: postgres
 
     environment:
       POSTGRES_DB: vikunja
@@ -41,6 +42,26 @@ services:
 
     networks:
       - internal
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+
+    volumes:
+      - /volume1/docker/pgadmin:/var/lib/pgadmin
+
+    depends_on:
+      - postgres
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+      - proxy
 
 networks:
   proxy:
