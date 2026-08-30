@@ -17,51 +17,11 @@ services:
     volumes:
       - /volume1/docker/vikunja/files:/app/vikunja/files
 
-    depends_on:
-      - postgres
-
     restart: unless-stopped
 
     networks:
       - proxy
       - internal
-
-  postgres:
-    image: postgres:latest
-    container_name: postgres
-
-    environment:
-      POSTGRES_DB: vikunja
-      POSTGRES_USER: vikunja
-      POSTGRES_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
-
-    volumes:
-      - /volume1/docker/vikunja/postgres:/var/lib/postgresql
-
-    restart: unless-stopped
-
-    networks:
-      - internal
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadmin
-
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-
-    volumes:
-      - /volume1/docker/pgadmin:/var/lib/pgadmin
-
-    depends_on:
-      - postgres
-
-    restart: unless-stopped
-
-    networks:
-      - internal
-      - proxy
 
 networks:
   proxy:
