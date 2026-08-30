@@ -148,6 +148,7 @@ async def trigger_portainer_stack(
             async with httpx.AsyncClient(
                 timeout=PORTAINER_TIMEOUT,
                 follow_redirects=False,
+                verify=False,
             ) as client:
                 response = await client.post(webhook_url)
 
@@ -161,24 +162,28 @@ async def trigger_portainer_stack(
                 return True
 
             logger.warning(
-                "Portainer trigger failed stack=%s attempt=%s/%s status=%s",
+                "Portainer trigger failed stack=%s attempt=%s/%s status=%s response=%s",
                 stack_name,
                 attempt,
                 max_attempts,
                 response.status_code,
+                response.text[:500],
             )
 
         except httpx.RequestError as exc:
             logger.warning(
-                "Portainer trigger request failed stack=%s attempt=%s/%s error=%s",
+                "Portainer trigger request failed "
+                "stack=%s attempt=%s/%s error=%s detail=%s",
                 stack_name,
                 attempt,
                 max_attempts,
                 type(exc).__name__,
+                str(exc),
             )
 
         if attempt < max_attempts:
             delay = delays[attempt]
+
             logger.info(
                 "Retrying Portainer stack=%s in %s seconds",
                 stack_name,
@@ -194,7 +199,6 @@ async def trigger_portainer_stack(
     )
 
     return False
-
 
 def is_duplicate_delivery(delivery_id: str) -> bool:
     """Return True if delivery was already processed."""
