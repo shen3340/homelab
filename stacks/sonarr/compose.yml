@@ -1,0 +1,24 @@
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/sonarr/config:/config
+      - /volume1/media:/data
+
+    ports:
+      - "8989:8989"
+
+    networks:
+      - media
+
+networks:
+  media:
+    external: true
