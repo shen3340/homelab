@@ -1,4 +1,4 @@
-#region Libraries
+# region Libraries
 
 import asyncio
 import hashlib
@@ -12,10 +12,10 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 
-#endregion
+# endregion
 
 
-#region Config
+# region Config
 
 GITHUB_WEBHOOK_SECRET = os.environ["GITHUB_WEBHOOK_SECRET"]
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "shen3340/homelab")
@@ -30,10 +30,10 @@ MAX_PROCESSED_DELIVERIES = int(os.getenv("MAX_PROCESSED_DELIVERIES", "1000"))
 processed_deliveries: set[str] = set()
 processed_delivery_order: deque[str] = deque()
 
-#endregion
+# endregion
 
 
-#region Logging
+# region Logging
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -42,10 +42,10 @@ logging.basicConfig(
 
 logger = logging.getLogger("webhook-dispatcher")
 
-#endregion
+# endregion
 
 
-#region FastAPI
+# region FastAPI
 
 app = FastAPI(
     title="Homelab GitOps Webhook Dispatcher",
@@ -53,10 +53,10 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-#endregion
+# endregion
 
 
-#region Helpers
+# region Helpers
 
 
 def verify_signature(payload: bytes, signature: str | None) -> bool:
@@ -230,11 +230,7 @@ async def redeploy_portainer_stack(
         )
         return False
 
-    url = (
-        f"{PORTAINER_URL}/api/stacks/"
-        f"{stack_id}/git/redeploy"
-        f"?endpointId={endpoint_id}"
-    )
+    url = f"{PORTAINER_URL}/api/stacks/{stack_id}/git/redeploy?endpointId={endpoint_id}"
 
     payload = {
         "repullImageAndRedeploy": True,
@@ -245,8 +241,7 @@ async def redeploy_portainer_stack(
 
     for attempt in range(1, max_attempts + 1):
         logger.info(
-            "Redeploying Portainer stack=%s id=%s "
-            "endpoint=%s attempt=%s/%s",
+            "Redeploying Portainer stack=%s id=%s endpoint=%s attempt=%s/%s",
             stack_name,
             stack_id,
             endpoint_id,
@@ -262,8 +257,7 @@ async def redeploy_portainer_stack(
 
             if 200 <= response.status_code < 300:
                 logger.info(
-                    "Portainer redeploy succeeded "
-                    "stack=%s id=%s status=%s",
+                    "Portainer redeploy succeeded stack=%s id=%s status=%s",
                     stack_name,
                     stack_id,
                     response.status_code,
@@ -307,8 +301,7 @@ async def redeploy_portainer_stack(
             await asyncio.sleep(delay)
 
     logger.error(
-        "Portainer redeploy permanently failed "
-        "stack=%s id=%s attempts=%s",
+        "Portainer redeploy permanently failed stack=%s id=%s attempts=%s",
         stack_name,
         stack_id,
         max_attempts,
@@ -317,10 +310,10 @@ async def redeploy_portainer_stack(
     return False
 
 
-#endregion
+# endregion
 
 
-#region Routes
+# region Routes
 
 
 @app.get("/health")
@@ -403,8 +396,7 @@ async def github_webhook(
 
     if repository != GITHUB_REPOSITORY:
         logger.warning(
-            "Ignoring unexpected repository "
-            "delivery=%s repository=%s",
+            "Ignoring unexpected repository delivery=%s repository=%s",
             delivery_id,
             repository,
         )
@@ -418,8 +410,7 @@ async def github_webhook(
 
     if ref != GITHUB_BRANCH:
         logger.info(
-            "Ignoring non-target branch "
-            "delivery=%s ref=%s",
+            "Ignoring non-target branch delivery=%s ref=%s",
             delivery_id,
             ref,
         )
@@ -434,8 +425,7 @@ async def github_webhook(
     changed_paths = extract_changed_paths(payload)
 
     logger.info(
-        "GitHub push delivery=%s repository=%s "
-        "ref=%s commit=%s paths=%s",
+        "GitHub push delivery=%s repository=%s ref=%s commit=%s paths=%s",
         delivery_id,
         repository,
         ref,
@@ -483,7 +473,6 @@ async def github_webhook(
         verify=False,
         headers=headers,
     ) as client:
-
         for stack_name in sorted(affected_stacks):
             try:
                 stack = await find_portainer_stack(
@@ -504,8 +493,7 @@ async def github_webhook(
 
                 if not git_config:
                     logger.warning(
-                        "Portainer stack is not Git-backed "
-                        "stack=%s id=%s",
+                        "Portainer stack is not Git-backed stack=%s id=%s",
                         stack_name,
                         stack.get("Id"),
                     )
@@ -533,8 +521,7 @@ async def github_webhook(
 
             except Exception as exc:
                 logger.exception(
-                    "Unexpected stack processing error "
-                    "stack=%s error=%s",
+                    "Unexpected stack processing error stack=%s error=%s",
                     stack_name,
                     exc,
                 )
@@ -563,4 +550,4 @@ async def github_webhook(
     }
 
 
-#endregion
+# endregion
