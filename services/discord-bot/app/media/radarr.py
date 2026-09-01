@@ -3,7 +3,6 @@ from typing import Any
 
 import httpx
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -79,16 +78,12 @@ class RadarrClient:
                 exc,
             )
 
-            raise RadarrError(
-                "Unable to communicate with Radarr."
-            ) from exc
+            raise RadarrError("Unable to communicate with Radarr.") from exc
 
         data = response.json()
 
         if not isinstance(data, list):
-            raise RadarrError(
-                "Radarr returned an unexpected response."
-            )
+            raise RadarrError("Radarr returned an unexpected response.")
 
         return data
 
@@ -113,16 +108,12 @@ class RadarrClient:
                 exc,
             )
 
-            raise RadarrError(
-                "Unable to retrieve movie details from Radarr."
-            ) from exc
+            raise RadarrError("Unable to retrieve movie details from Radarr.") from exc
 
         data = response.json()
 
         if not isinstance(data, dict):
-            raise RadarrError(
-                "Radarr returned unexpected movie data."
-            )
+            raise RadarrError("Radarr returned unexpected movie data.")
 
         return data
 
@@ -140,16 +131,12 @@ class RadarrClient:
                 exc,
             )
 
-            raise RadarrError(
-                "Unable to retrieve Radarr root folders."
-            ) from exc
+            raise RadarrError("Unable to retrieve Radarr root folders.") from exc
 
         data = response.json()
 
         if not isinstance(data, list):
-            raise RadarrError(
-                "Radarr returned unexpected root folder data."
-            )
+            raise RadarrError("Radarr returned unexpected root folder data.")
 
         return data
 
@@ -169,16 +156,12 @@ class RadarrClient:
                 exc,
             )
 
-            raise RadarrError(
-                "Unable to retrieve Radarr quality profiles."
-            ) from exc
+            raise RadarrError("Unable to retrieve Radarr quality profiles.") from exc
 
         data = response.json()
 
         if not isinstance(data, list):
-            raise RadarrError(
-                "Radarr returned unexpected quality profile data."
-            )
+            raise RadarrError("Radarr returned unexpected quality profile data.")
 
         return data
 
@@ -189,16 +172,12 @@ class RadarrClient:
         root_folders = await self.get_root_folders()
 
         if not root_folders:
-            raise RadarrError(
-                "Radarr has no configured root folders."
-            )
+            raise RadarrError("Radarr has no configured root folders.")
 
         quality_profiles = await self.get_quality_profiles()
 
         if not quality_profiles:
-            raise RadarrError(
-                "Radarr has no configured quality profiles."
-            )
+            raise RadarrError("Radarr has no configured quality profiles.")
 
         root_folder = root_folders[0]
         quality_profile = quality_profiles[0]
@@ -234,9 +213,7 @@ class RadarrClient:
                 exc.response.text,
             )
 
-            raise RadarrError(
-                "Radarr rejected the movie request."
-            ) from exc
+            raise RadarrError("Radarr rejected the movie request.") from exc
 
         except httpx.HTTPError as exc:
             logger.error(
@@ -244,16 +221,12 @@ class RadarrClient:
                 exc,
             )
 
-            raise RadarrError(
-                "Unable to communicate with Radarr."
-            ) from exc
+            raise RadarrError("Unable to communicate with Radarr.") from exc
 
         data = response.json()
 
         if not isinstance(data, dict):
-            raise RadarrError(
-                "Radarr returned unexpected movie data."
-            )
+            raise RadarrError("Radarr returned unexpected movie data.")
 
         logger.info(
             "Movie added to Radarr: %s (%s)",

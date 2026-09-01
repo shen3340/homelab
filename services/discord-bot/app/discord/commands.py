@@ -7,7 +7,6 @@ from app.discord.bot import MediaBot
 from app.discord.views import MovieSearchView
 from app.media.radarr import RadarrError
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -41,16 +40,12 @@ def register_commands(bot: MediaBot) -> None:
                 query,
             )
 
-            await interaction.followup.send(
-                "❌ Unable to communicate with Radarr."
-            )
+            await interaction.followup.send("❌ Unable to communicate with Radarr.")
 
             return
 
         if not results:
-            await interaction.followup.send(
-                f"❌ No movies found for `{query}`."
-            )
+            await interaction.followup.send(f"❌ No movies found for `{query}`.")
 
             return
 
@@ -58,10 +53,7 @@ def register_commands(bot: MediaBot) -> None:
 
         embed = discord.Embed(
             title=f"Movie Search: {query}",
-            description=(
-                "Select a movie below to view details "
-                "and request it."
-            ),
+            description=("Select a movie below to view details and request it."),
         )
 
         for index, movie in enumerate(

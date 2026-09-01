@@ -3,6 +3,7 @@ from typing import Any
 
 import discord
 
+from app.database.requests import create_movie_request
 from app.media.radarr import RadarrError
 
 
@@ -61,11 +62,6 @@ class MovieSelectButton(discord.ui.Button):
     ):
         title = movie.get(
             "title",
-            "Unknown",
-        )
-
-        year = movie.get(
-            "year",
             "Unknown",
         )
 
@@ -194,62 +190,133 @@ class MovieRequestView(discord.ui.View):
 
             return
 
-        button.disabled = True
-
         for child in self.children:
             child.disabled = True
 
-        embed = discord.Embed(
-            title="✅ Movie Requested",
-            description=f"**{title}** ({year})",
+        # Parent-channel message.
+        parent_embed = build_request_embed(
+            title=title,
+            year=year,
+            requester=interaction.user,
+            status="searching",
         )
 
-        movie_path = added_movie.get(
-            "path",
+        parent_message = await interaction.followup.send(
+            embed=parent_embed,
+            wait=True,
         )
 
-        if movie_path:
-            embed.add_field(
-                name="Path",
-                value=movie_path,
-                inline=False,
+        if interaction.channel is None:
+            logger.error(
+                "Unable to determine Discord channel for request"
             )
 
-        embed.add_field(
-            name="Status",
-            value="🔎 Radarr is searching for a release.",
-            inline=False,
+            return
+
+        # Thread owns status/history.
+        thread = await interaction.channel.create_thread(
+            name=f"🎬 {title} ({year})",
+            type=discord.ChannelType.public_thread,
+            auto_archive_duration=10080,
         )
 
-        await interaction.followup.send(
-            embed=embed,
+        request_id = create_movie_request(
+            radarr_movie_id=added_movie["id"],
+            tmdb_id=added_movie.get("tmdbId"),
+            title=title,
+            year=year,
+            discord_guild_id=interaction.guild_id,
+            discord_channel_id=interaction.channel_id,
+            discord_message_id=parent_message.id,
+            discord_thread_id=thread.id,
+            requester_id=interaction.user.id,
+            status="searching",
+        )
+
+        thread_embed = build_status_embed(
+            title=title,
+            year=year,
+            status="searching",
+        )
+
+        await thread.send(
+            embed=thread_embed,
+        )
+
+        logger.info(
+            "Created movie request %s for %s (%s) "
+            "with Discord thread %s",
+            request_id,
+            title,
+            year,
+            thread.id,
         )
 
         self.stop()
 
-    @discord.ui.button(
-        label="Cancel",
-        style=discord.ButtonStyle.danger,
+
+def build_request_embed(
+    *,
+    title: str,
+    year: Any,
+    requester: discord.abc.User,
+    status: str,
+) -> discord.Embed:
+    embed = discord.Embed(
+        title=f"🎬 {title}",
+        description=f"**{year}**",
     )
-    async def cancel_movie(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button,
-    ) -> None:
-        for child in self.children:
-            child.disabled = True
 
-        await interaction.response.edit_message(
-            content="❌ Movie request cancelled.",
-            embed=None,
-            view=self,
-        )
+    embed.add_field(
+        name="Requested by",
+        value=requester.mention,
+        inline=True,
+    )
 
-        self.stop()
+    embed.add_field(
+        name="Status",
+        value=status_text(status),
+        inline=True,
+    )
 
-    async def on_timeout(self) -> None:
-        for child in self.children:
-            child.disabled = True
+    return embed
+
+
+def build_status_embed(
+    *,
+    title: str,
+    year: Any,
+    status: str,
+) -> discord.Embed:
+    embed = discord.Embed(
+        title=f"🎬 {title}",
+        description=f"**{year}**",
+    )
+
+    embed.add_field(
+        name="Status",
+        value=status_text(status),
+        inline=False,
+    )
+
+    return embed
+
+
+def status_text(
+    status: str,
+) -> str:
+    statuses = {
+        "searching": "🔎 Searching for release",
+        "downloading": "⬇️ Downloading",
+        "ready": "🍿 Ready to watch",
+        "failed": "❌ Download failed",
+        "removed": "🗑️ Movie file removed",
+    }
+
+    return statuses.get(
+        status,
+        "❓ Unknown",
+    )
 
 
 def build_movie_embed(
