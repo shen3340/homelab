@@ -1,0 +1,25 @@
+services:
+  nfc-music:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: nfc-music
+
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_NAME: nfc_music
+      DATABASE_USER: nfc_music
+      DATABASE_PASSWORD: ${NFC_MUSIC_DATABASE_PASSWORD}
+
+    ports:
+      - "8000:8000"
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true

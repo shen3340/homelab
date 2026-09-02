@@ -194,11 +194,7 @@ class MediaBot(commands.Bot):
 
             parent_embed = discord.Embed(
                 title=f"🎬 {request['title']}",
-                description=(
-                    f"**{request['year']}**"
-                    if request["year"]
-                    else None
-                ),
+                description=(f"**{request['year']}**" if request["year"] else None),
             )
 
             parent_embed.add_field(
@@ -256,11 +252,7 @@ class MediaBot(commands.Bot):
             # Add status event to history.
             status_embed = discord.Embed(
                 title=f"🎬 {request['title']}",
-                description=(
-                    f"**{request['year']}**"
-                    if request["year"]
-                    else None
-                ),
+                description=(f"**{request['year']}**" if request["year"] else None),
             )
 
             status_embed.add_field(
@@ -291,8 +283,7 @@ class MediaBot(commands.Bot):
 
         except discord.Forbidden:
             logger.error(
-                "Discord bot does not have permission to update "
-                "request %s",
+                "Discord bot does not have permission to update request %s",
                 request["id"],
             )
 
@@ -301,6 +292,7 @@ class MediaBot(commands.Bot):
                 "Failed to update Discord request %s",
                 request["id"],
             )
+
     @staticmethod
     def _status_text(
         status: str,

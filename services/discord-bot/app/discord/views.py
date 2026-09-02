@@ -6,7 +6,6 @@ import discord
 from app.database.requests import create_movie_request
 from app.media.radarr import RadarrError
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -184,9 +183,7 @@ class MovieRequestView(discord.ui.View):
                 year,
             )
 
-            await interaction.followup.send(
-                "❌ Unable to add movie to Radarr."
-            )
+            await interaction.followup.send("❌ Unable to add movie to Radarr.")
 
             return
 
@@ -207,9 +204,7 @@ class MovieRequestView(discord.ui.View):
         )
 
         if interaction.channel is None:
-            logger.error(
-                "Unable to determine Discord channel for request"
-            )
+            logger.error("Unable to determine Discord channel for request")
 
             return
 
@@ -244,8 +239,7 @@ class MovieRequestView(discord.ui.View):
         )
 
         logger.info(
-            "Created movie request %s for %s (%s) "
-            "with Discord thread %s",
+            "Created movie request %s for %s (%s) with Discord thread %s",
             request_id,
             title,
             year,
