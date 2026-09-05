@@ -1,43 +1,47 @@
 import secrets
 from datetime import datetime, timedelta, timezone
-from fastapi.responses import HTMLResponse
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from psycopg.errors import UniqueViolation
+from pydantic import BaseModel
+
 from app.database import (
     consume_oauth_state,
+    create_album,
+    create_tag,
+    delete_album,
+    delete_tag,
+    get_album_by_spotify_id,
+    get_all_albums,
+    get_all_tags,
     get_connection,
     get_spotify_device,
     get_tag,
     initialize_auth_tables,
     save_oauth_state,
-    create_album,
-    create_tag,
-    get_all_tags,
-    delete_tag,
-    update_tag,
-    get_all_albums,
     update_album,
-    delete_album,
-)
-from pydantic import BaseModel
-from app.spotify import (
-    exchange_code,
-    get_authorization_url,
-    save_token_response,
+    update_tag,
 )
 
 from app.spotify import (
+    exchange_code,
+    get_album_by_id,
+    get_authorization_url,
     get_devices,
+    save_token_response,
+    search_albums,
     set_repeat,
     set_shuffle,
     start_album,
-    search_album,
 )
 
 
 class AlbumCreate(BaseModel):
-    artist: str
-    title: str
+    spotify_id: str
     navidrome_id: str | None = None
 
 
@@ -62,6 +66,18 @@ class TagUpdate(BaseModel):
 app = FastAPI(
     title="NFC Music",
     version="0.1.0",
+)
+
+BASE_DIR = Path(__file__).resolve().parent
+
+app.mount(
+    "/static",
+    StaticFiles(directory=BASE_DIR / "static"),
+    name="static",
+)
+
+templates = Jinja2Templates(
+    directory=BASE_DIR / "templates",
 )
 
 
@@ -227,6 +243,38 @@ async def nfc_tag(tag_uid: str) -> str:
     """
 
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={
+            "static_version": int(datetime.now().timestamp()),
+        },
+    )
+
+
+@app.get("/admin/spotify/search")
+async def admin_search_spotify(q: str) -> list[dict]:
+    query = q.strip()
+
+    if not query:
+        return []
+
+    try:
+        return await search_albums(query)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Spotify search failed.",
+        )
+
+
 @app.get("/admin/tags")
 async def admin_get_tags() -> list[dict]:
     return get_all_tags()
@@ -234,10 +282,7 @@ async def admin_get_tags() -> list[dict]:
 
 @app.post("/admin/albums")
 async def admin_create_album(album: AlbumCreate) -> dict:
-    spotify_album = await search_album(
-        artist=album.artist,
-        title=album.title,
-    )
+    spotify_album = await get_album_by_id(album.spotify_id)
 
     if spotify_album is None:
         raise HTTPException(
@@ -245,9 +290,15 @@ async def admin_create_album(album: AlbumCreate) -> dict:
             detail="Album not found on Spotify",
         )
 
+    existing = get_album_by_spotify_id(album.spotify_id)
+
+    if existing is not None:
+        return existing
+
     album_id = create_album(
         artist=spotify_album["artist"],
         title=spotify_album["title"],
+        spotify_id=spotify_album["spotify_id"],
         spotify_uri=spotify_album["spotify_uri"],
         navidrome_id=album.navidrome_id,
     )
@@ -256,7 +307,9 @@ async def admin_create_album(album: AlbumCreate) -> dict:
         "id": album_id,
         "artist": spotify_album["artist"],
         "title": spotify_album["title"],
+        "spotify_id": spotify_album["spotify_id"],
         "spotify_uri": spotify_album["spotify_uri"],
+        "navidrome_id": album.navidrome_id,
     }
 
 
@@ -266,6 +319,11 @@ async def admin_create_tag(tag: TagCreate) -> dict:
         tag_id = create_tag(
             tag_uid=tag.tag_uid,
             album_id=tag.album_id,
+        )
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="This NFC tag is already registered.",
         )
     except ValueError as exc:
         raise HTTPException(
@@ -291,6 +349,11 @@ async def admin_update_tag(
             tag_uid=tag.tag_uid,
             album_id=tag.album_id,
             enabled=tag.enabled,
+        )
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="This NFC tag is already registered.",
         )
     except ValueError as exc:
         raise HTTPException(

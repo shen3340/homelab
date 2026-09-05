@@ -1,0 +1,523 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.tags-list {
+  display: grid;
+  gap: 12px;
+}
+
+.tag-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.tag-name {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.tag-uid {
+  margin: 0 0 10px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #6b7280;
+  overflow-wrap: anywhere;
+}
+
+.tag-status {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-enabled {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-disabled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tag-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-weight: 600;
+}
+
+.primary-button {
+  color: white;
+  background: #111827;
+}
+
+.secondary-button {
+  color: #374151;
+  background: #e5e7eb;
+}
+
+.danger-button {
+  color: white;
+  background: #dc2626;
+}
+
+.text-button {
+  border: 0;
+  background: none;
+  color: #2563eb;
+  padding: 4px;
+  font-weight: 600;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  font-size: 30px;
+  color: #6b7280;
+}
+
+.message {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.loading,
+.empty {
+  padding: 30px 10px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 16px 28px;
+  background: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="search"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: white;
+  outline: none;
+}
+
+input:focus {
+  border-color: #2563eb;
+}
+
+.uid-row {
+  display: flex;
+  gap: 8px;
+}
+
+.uid-row input {
+  min-width: 0;
+}
+
+.scan-button {
+  flex-shrink: 0;
+}
+
+.help-text {
+  min-height: 18px;
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.album-list {
+  max-height: 240px;
+  margin-top: 8px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.album-option {
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+  text-align: left;
+}
+
+.album-option:last-child {
+  border-bottom: 0;
+}
+
+.album-option:hover,
+.album-option:focus {
+  background: #f3f4f6;
+}
+
+.album-artist {
+  font-weight: 650;
+}
+
+.album-title {
+  color: #6b7280;
+}
+
+.selected-album {
+  margin: -4px 0 20px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+.selected-album span {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.selected-album strong {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.checkbox-row input {
+  width: 20px;
+  height: 20px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.confirmation h2 {
+  margin-top: 0;
+}
+
+#delete-details {
+  padding: 12px;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+@media (min-width: 700px) {
+  .container {
+    padding-top: 40px;
+  }
+
+  .modal {
+    align-items: center;
+  }
+
+  .modal-content {
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 500px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header .primary-button {
+    width: 100%;
+  }
+
+  .uid-row {
+    flex-direction: column;
+  }
+
+  .uid-row .secondary-button {
+    width: 100%;
+  }
+
+  .tag-actions button {
+    flex: 1;
+  }
+}
+
+/* Provisioning wizard */
+
+.wizard-step h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.wizard-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.25rem 0;
+  color: #777;
+}
+
+.wizard-divider::before,
+.wizard-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #ddd;
+}
+
+.provisioning-tag {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.provisioning-tag span {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.provisioning-tag code {
+  word-break: break-all;
+}
+
+.album-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+
+.album-option:hover {
+  background: #f5f5f5;
+}
+
+.album-art {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.album-option-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.album-option-content strong,
+.album-option-content span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-meta {
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+}
+
+.confirmation-album {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.confirmation-album > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.confirmation-art {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.confirmation-section {
+  margin-top: 1rem;
+}
+
+.confirmation-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.confirmation-section code {
+  display: block;
+  word-break: break-all;
+}
+
+.success-state {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.success-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}

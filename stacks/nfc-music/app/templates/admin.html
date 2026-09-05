@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>NFC Music Admin</title>
+    <link rel="stylesheet" href="/static/admin.css?v={{ static_version }}" />
+  </head>
+
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <h1>NFC Music</h1>
+          <p>Manage NFC tags</p>
+        </div>
+
+        <button id="add-tag-button" class="primary-button">
+          + Add NFC Tag
+        </button>
+      </header>
+
+      <div id="message" class="message hidden"></div>
+
+      <section id="tags-section">
+        <div class="section-header">
+          <h2>NFC Tags</h2>
+          <button id="refresh-button" class="secondary-button">Refresh</button>
+        </div>
+
+        <div id="tags-list" class="tags-list">
+          <div class="loading">Loading tags...</div>
+        </div>
+      </section>
+    </main>
+
+    <div id="modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <section class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h2 id="modal-title">Add NFC Tag</h2>
+            <p id="wizard-step" class="help-text">Step 1 of 3</p>
+          </div>
+
+          <button
+            id="close-modal-button"
+            class="icon-button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- STEP 1: NFC TAG -->
+        <section id="step-1" class="wizard-step">
+          <h3>Scan your NFC tag</h3>
+
+          <button
+            type="button"
+            id="scan-button"
+            class="primary-button full-width"
+          >
+            Scan NFC Tag
+          </button>
+
+          <div class="wizard-divider">
+            <span>or</span>
+          </div>
+
+          <div class="form-group">
+            <label for="tag-uid">Tag UID</label>
+
+            <input
+              id="tag-uid"
+              type="text"
+              autocomplete="off"
+              autocapitalize="characters"
+            />
+
+            <p id="nfc-status" class="help-text">
+              Scan a tag or enter its UID manually.
+            </p>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="cancel-button" class="secondary-button">
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              id="continue-tag-button"
+              class="primary-button"
+            >
+              Continue
+            </button>
+          </div>
+        </section>
+
+        <!-- STEP 2: SPOTIFY -->
+        <!-- STEP 2: ALBUM SELECTION -->
+        <section id="step-2" class="wizard-step hidden">
+          <div class="provisioning-tag">
+            <span>NFC Tag</span>
+            <code id="spotify-tag-uid"></code>
+          </div>
+
+          <div class="form-group">
+            <label for="album-search">Choose Album</label>
+
+            <input
+              id="album-search"
+              type="search"
+              placeholder="Search your albums..."
+              autocomplete="off"
+            />
+          </div>
+
+          <div id="album-list" class="album-list"></div>
+
+          <div id="spotify-loading" class="loading hidden">
+            Searching Spotify...
+          </div>
+
+          <div id="spotify-empty" class="empty hidden">
+            No matching albums found.
+          </div>
+
+          <div class="spotify-search-section">
+            <p class="help-text">Can't find the album in your library?</p>
+
+            <button
+              type="button"
+              id="spotify-search-button"
+              class="secondary-button full-width"
+            >
+              Search Spotify
+            </button>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              id="back-to-tag-button"
+              class="secondary-button"
+            >
+              Back
+            </button>
+          </div>
+        </section>
+
+        <!-- STEP 3: CONFIRM -->
+        <section id="step-3" class="wizard-step hidden">
+          <h3>Confirm Album</h3>
+
+          <div id="confirmation-album" class="confirmation-album"></div>
+
+          <div class="confirmation-section">
+            <span class="confirmation-label">NFC Tag</span>
+            <code id="confirmation-tag-uid"></code>
+          </div>
+
+          <div class="confirmation-section">
+            <span class="confirmation-label">Playback URL</span>
+            <code id="confirmation-url"></code>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              id="back-to-search-button"
+              class="secondary-button"
+            >
+              Back
+            </button>
+
+            <button type="button" id="confirm-button" class="primary-button">
+              Write & Configure
+            </button>
+          </div>
+        </section>
+
+        <!-- EDIT TAG -->
+        <section id="step-edit" class="wizard-step hidden">
+          <h3>Edit NFC Tag</h3>
+
+          <div class="form-group">
+            <label for="edit-tag-uid">Tag UID</label>
+
+            <input id="edit-tag-uid" type="text" readonly />
+
+            <p class="help-text">
+              The UID identifies the physical NFC tag and cannot be changed
+              here.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-album">Album</label>
+
+            <select id="edit-album">
+              <option value="">Loading albums...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input id="edit-enabled" type="checkbox" />
+              Enabled
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              id="cancel-edit-button"
+              class="secondary-button"
+            >
+              Cancel
+            </button>
+
+            <button type="button" id="save-edit-button" class="primary-button">
+              Save Changes
+            </button>
+          </div>
+        </section>
+
+        <!-- SUCCESS -->
+        <section id="step-success" class="wizard-step hidden">
+          <div class="success-state">
+            <div class="success-icon">✓</div>
+
+            <h3>Database Configured</h3>
+
+            <div id="success-details"></div>
+
+            <p class="help-text">
+              The NFC tag has been written and configured successfully.
+            </p>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              id="done-button"
+              class="primary-button full-width"
+            >
+              Done
+            </button>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <div id="delete-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <section class="modal-content confirmation">
+        <h2>Delete this NFC tag?</h2>
+
+        <div id="delete-details"></div>
+
+        <div class="form-actions">
+          <button
+            type="button"
+            id="cancel-delete-button"
+            class="secondary-button"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            id="confirm-delete-button"
+            class="danger-button"
+          >
+            Delete
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <script src="/static/admin.js?v={{ static_version }}"></script>
+  </body>
+</html>

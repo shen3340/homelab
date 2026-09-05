@@ -158,7 +158,8 @@ def get_tag(tag_uid: str):
             SELECT
                 t.id,
                 t.tag_uid,
-                a.artist || ' — ' || a.title AS name,
+                a.artist,
+                a.title,
                 t.album_id,
                 t.enabled,
                 a.spotify_uri,
@@ -177,11 +178,12 @@ def get_tag(tag_uid: str):
     return {
         "id": row[0],
         "tag_uid": row[1],
-        "name": row[2],
-        "album_id": row[3],
-        "enabled": row[4],
-        "spotify_uri": row[5],
-        "navidrome_id": row[6],
+        "artist": row[2],
+        "title": row[3],
+        "album_id": row[4],
+        "enabled": row[5],
+        "spotify_uri": row[6],
+        "navidrome_id": row[7],
     }
 
 
@@ -235,7 +237,8 @@ def get_all_tags():
             SELECT
                 t.id,
                 t.tag_uid,
-                a.artist || ' — ' || a.title AS name,
+                a.artist,
+                a.title,
                 t.album_id,
                 t.enabled
             FROM tags t
@@ -249,9 +252,10 @@ def get_all_tags():
         {
             "id": row[0],
             "tag_uid": row[1],
-            "name": row[2],
-            "album_id": row[3],
-            "enabled": row[4],
+            "artist": row[2],
+            "title": row[3],
+            "album_id": row[4],
+            "enabled": row[5],
         }
         for row in rows
     ]
@@ -260,6 +264,7 @@ def get_all_tags():
 def create_album(
     artist: str,
     title: str,
+    spotify_id: str | None = None,
     spotify_uri: str | None = None,
     navidrome_id: str | None = None,
 ) -> int:
@@ -269,21 +274,55 @@ def create_album(
             INSERT INTO albums (
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id
             )
-            VALUES (%s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id,
             ),
         ).fetchone()
 
     return row[0]
+
+
+def get_album_by_spotify_id(
+    spotify_id: str,
+) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                artist,
+                title,
+                spotify_id,
+                spotify_uri,
+                navidrome_id
+            FROM albums
+            WHERE spotify_id = %s
+            """,
+            (spotify_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "id": row[0],
+        "artist": row[1],
+        "title": row[2],
+        "spotify_id": row[3],
+        "spotify_uri": row[4],
+        "navidrome_id": row[5],
+    }
 
 
 def create_tag(
@@ -363,6 +402,7 @@ def get_all_albums() -> list[dict]:
                 id,
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id
             FROM albums
@@ -375,8 +415,9 @@ def get_all_albums() -> list[dict]:
             "id": row[0],
             "artist": row[1],
             "title": row[2],
-            "spotify_uri": row[3],
-            "navidrome_id": row[4],
+            "spotify_id": row[3],
+            "spotify_uri": row[4],
+            "navidrome_id": row[5],
         }
         for row in rows
     ]
