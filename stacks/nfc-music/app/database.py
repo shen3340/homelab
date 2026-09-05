@@ -158,9 +158,9 @@ def get_tag(tag_uid: str):
             SELECT
                 t.id,
                 t.tag_uid,
-                a.artist || ' — ' || a.title AS name,
+                a.artist,
+                a.title,
                 t.album_id,
-                t.enabled,
                 a.spotify_uri,
                 a.navidrome_id
             FROM tags t
@@ -177,9 +177,9 @@ def get_tag(tag_uid: str):
     return {
         "id": row[0],
         "tag_uid": row[1],
-        "name": row[2],
-        "album_id": row[3],
-        "enabled": row[4],
+        "artist": row[2],
+        "title": row[3],
+        "album_id": row[4],
         "spotify_uri": row[5],
         "navidrome_id": row[6],
     }
@@ -228,38 +228,105 @@ def save_spotify_device(
         )
 
 
-def get_all_tags():
+def get_all_tags(
+    page: int = 1,
+    page_size: int = 20,
+    search: str = "",
+    sort: str = "artist",
+    order: str = "asc",
+) -> dict:
+    sort_columns = {
+        "artist": "a.artist",
+        "album": "a.title",
+        "tag_uid": "t.tag_uid",
+        "id": "t.id",
+    }
+
+    sort_column = sort_columns.get(sort, "a.artist")
+    sort_direction = "DESC" if order.lower() == "desc" else "ASC"
+    search_value = search.strip()
+
     with get_connection() as connection:
-        rows = connection.execute(
+        count_row = connection.execute(
             """
-            SELECT
-                t.id,
-                t.tag_uid,
-                a.artist || ' — ' || a.title AS name,
-                t.album_id,
-                t.enabled
+            SELECT COUNT(*)
             FROM tags t
             JOIN albums a
                 ON a.id = t.album_id
-            ORDER BY t.id
-            """
+            WHERE (
+                %s = ''
+                OR a.artist ILIKE '%%' || %s || '%%'
+                OR a.title ILIKE '%%' || %s || '%%'
+                OR t.tag_uid ILIKE '%%' || %s || '%%'
+            )
+            """,
+            (
+                search_value,
+                search_value,
+                search_value,
+                search_value,
+            ),
+        ).fetchone()
+
+        total = count_row[0]
+
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        page = min(page, total_pages)
+        offset = (page - 1) * page_size
+
+        rows = connection.execute(
+            f"""
+            SELECT
+                t.id,
+                t.tag_uid,
+                a.artist,
+                a.title,
+                t.album_id
+            FROM tags t
+            JOIN albums a
+                ON a.id = t.album_id
+            WHERE (
+                %s = ''
+                OR a.artist ILIKE '%%' || %s || '%%'
+                OR a.title ILIKE '%%' || %s || '%%'
+                OR t.tag_uid ILIKE '%%' || %s || '%%'
+            )
+            ORDER BY {sort_column} {sort_direction}, t.id ASC
+            LIMIT %s
+            OFFSET %s
+            """,
+            (
+                search_value,
+                search_value,
+                search_value,
+                search_value,
+                page_size,
+                offset,
+            ),
         ).fetchall()
 
-    return [
-        {
-            "id": row[0],
-            "tag_uid": row[1],
-            "name": row[2],
-            "album_id": row[3],
-            "enabled": row[4],
-        }
-        for row in rows
-    ]
+    return {
+        "items": [
+            {
+                "id": row[0],
+                "tag_uid": row[1],
+                "artist": row[2],
+                "title": row[3],
+                "album_id": row[4],
+            }
+            for row in rows
+        ],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages,
+    }
 
 
 def create_album(
     artist: str,
     title: str,
+    spotify_id: str | None = None,
     spotify_uri: str | None = None,
     navidrome_id: str | None = None,
 ) -> int:
@@ -269,21 +336,55 @@ def create_album(
             INSERT INTO albums (
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id
             )
-            VALUES (%s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id,
             ),
         ).fetchone()
 
     return row[0]
+
+
+def get_album_by_spotify_id(
+    spotify_id: str,
+) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                artist,
+                title,
+                spotify_id,
+                spotify_uri,
+                navidrome_id
+            FROM albums
+            WHERE spotify_id = %s
+            """,
+            (spotify_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "id": row[0],
+        "artist": row[1],
+        "title": row[2],
+        "spotify_id": row[3],
+        "spotify_uri": row[4],
+        "navidrome_id": row[5],
+    }
 
 
 def create_tag(
@@ -330,7 +431,6 @@ def update_tag(
     tag_id: int,
     tag_uid: str,
     album_id: int,
-    enabled: bool,
 ) -> None:
     with get_connection() as connection:
         row = connection.execute(
@@ -338,21 +438,53 @@ def update_tag(
             UPDATE tags
             SET
                 tag_uid = %s,
-                album_id = %s,
-                enabled = %s
+                album_id = %s
             WHERE id = %s
             RETURNING id
             """,
             (
                 tag_uid,
                 album_id,
-                enabled,
                 tag_id,
             ),
         ).fetchone()
 
     if row is None:
         raise ValueError("Tag not found")
+
+
+def get_available_albums() -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                a.id,
+                a.artist,
+                a.title,
+                a.spotify_id,
+                a.spotify_uri,
+                a.navidrome_id
+            FROM albums a
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM tags t
+                WHERE t.album_id = a.id
+            )
+            ORDER BY a.artist, a.title
+            """
+        ).fetchall()
+
+    return [
+        {
+            "id": row[0],
+            "artist": row[1],
+            "title": row[2],
+            "spotify_id": row[3],
+            "spotify_uri": row[4],
+            "navidrome_id": row[5],
+        }
+        for row in rows
+    ]
 
 
 def get_all_albums() -> list[dict]:
@@ -363,6 +495,7 @@ def get_all_albums() -> list[dict]:
                 id,
                 artist,
                 title,
+                spotify_id,
                 spotify_uri,
                 navidrome_id
             FROM albums
@@ -375,8 +508,9 @@ def get_all_albums() -> list[dict]:
             "id": row[0],
             "artist": row[1],
             "title": row[2],
-            "spotify_uri": row[3],
-            "navidrome_id": row[4],
+            "spotify_id": row[3],
+            "spotify_uri": row[4],
+            "navidrome_id": row[5],
         }
         for row in rows
     ]

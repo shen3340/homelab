@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 psycopg[binary]
 httpx
+pydantic
+jinja2

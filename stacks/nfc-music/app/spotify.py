@@ -16,6 +16,7 @@ REDIRECT_URI = os.environ["SPOTIFY_REDIRECT_URI"]
 
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
+API_URL = "https://api.spotify.com/v1"
 
 SCOPES = [
     "user-read-playback-state",
@@ -101,8 +102,6 @@ async def get_valid_access_token() -> str:
 
     now = datetime.now(timezone.utc)
 
-    # Refresh slightly before expiration so an API request does not
-    # start with a token that expires during the request.
     refresh_threshold = now + timedelta(seconds=60)
 
     if tokens["expires_at"] > refresh_threshold:
@@ -122,90 +121,161 @@ async def get_valid_access_token() -> str:
     return access_token
 
 
+async def spotify_request(
+    method: str,
+    endpoint: str,
+    **kwargs,
+) -> httpx.Response:
+    token = await get_valid_access_token()
+
+    async with httpx.AsyncClient() as client:
+        response = await client.request(
+            method,
+            f"{API_URL}{endpoint}",
+            headers={"Authorization": f"Bearer {token}"},
+            **kwargs,
+        )
+
+    response.raise_for_status()
+    return response
+
+
 async def get_devices() -> list[dict]:
-    access_token = await get_valid_access_token()
+    response = await spotify_request("GET", "/me/player/devices")
+    return response.json()["devices"]
+
+
+async def set_shuffle(state: bool, device_id: str) -> None:
+    await spotify_request(
+        "PUT",
+        "/me/player/shuffle",
+        params={
+            "state": str(state).lower(),
+            "device_id": device_id,
+        },
+    )
+
+
+async def set_repeat(state: str, device_id: str) -> None:
+    await spotify_request(
+        "PUT",
+        "/me/player/repeat",
+        params={
+            "state": state,
+            "device_id": device_id,
+        },
+    )
+
+
+async def start_album(album_uri: str, device_id: str) -> None:
+    await spotify_request(
+        "PUT",
+        "/me/player/play",
+        params={"device_id": device_id},
+        json={
+            "context_uri": album_uri,
+            "position_ms": 0,
+        },
+    )
+
+
+async def get_album_tracks(
+    album_id: str,
+    client: httpx.AsyncClient,
+    headers: dict[str, str],
+) -> list[dict]:
+    tracks: list[dict] = []
+    offset = 0
+
+    while True:
+        response = await client.get(
+            f"{API_URL}/albums/{album_id}/tracks",
+            headers=headers,
+            params={
+                "market": "US",
+                "limit": 50,
+                "offset": offset,
+            },
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+        items = data.get("items", [])
+
+        tracks.extend(items)
+
+        if not data.get("next") or not items:
+            break
+
+        offset += len(items)
+
+    return tracks
+
+
+async def get_album_metadata(
+    album: dict,
+    client: httpx.AsyncClient,
+    headers: dict[str, str],
+) -> dict:
+    album_id = album.get("id")
+
+    if not album_id:
+        raise RuntimeError("Spotify album did not contain an ID")
+
+    tracks = await get_album_tracks(
+        album_id=album_id,
+        client=client,
+        headers=headers,
+    )
+
+    explicit = any(track.get("explicit", False) for track in tracks)
+
+    artists = album.get("artists", [])
+
+    artist = artists[0].get("name", "") if artists else ""
+
+    return {
+        "spotify_id": album_id,
+        "spotify_uri": album.get("uri"),
+        "artist": artist,
+        "title": album.get("name", ""),
+        "explicit": explicit,
+    }
+
+
+async def get_album_by_id(album_id: str) -> dict | None:
+    token = await get_valid_access_token()
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            "https://api.spotify.com/v1/me/player/devices",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-            },
+            f"{API_URL}/albums/{album_id}",
+            headers=headers,
+            params={"market": "US"},
         )
+
+        if response.status_code == 404:
+            return None
 
         response.raise_for_status()
 
-        return response.json()["devices"]
+        album = response.json()
+
+        try:
+            return await get_album_metadata(
+                album=album,
+                client=client,
+                headers=headers,
+            )
+        except (httpx.HTTPError, RuntimeError):
+            return None
 
 
-async def set_shuffle(
-    state: bool,
-    device_id: str,
-) -> None:
-    access_token = await get_valid_access_token()
-
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            "https://api.spotify.com/v1/me/player/shuffle",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-            },
-            params={
-                "state": str(state).lower(),
-                "device_id": device_id,
-            },
-        )
-
-        response.raise_for_status()
-
-
-async def set_repeat(
-    state: str,
-    device_id: str,
-) -> None:
-    access_token = await get_valid_access_token()
-
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            "https://api.spotify.com/v1/me/player/repeat",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-            },
-            params={
-                "state": state,
-                "device_id": device_id,
-            },
-        )
-
-        response.raise_for_status()
-
-
-async def start_album(
-    album_uri: str,
-    device_id: str,
-) -> None:
-    access_token = await get_valid_access_token()
-
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            "https://api.spotify.com/v1/me/player/play",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
-            },
-            params={
-                "device_id": device_id,
-            },
-            json={
-                "context_uri": album_uri,
-                "position_ms": 0,
-            },
-        )
-
-        response.raise_for_status()
-
-
-async def search_album(artist: str, title: str) -> dict | None:
+async def search_albums(query: str) -> list[dict]:
     token = await get_valid_access_token()
 
     headers = {
@@ -213,7 +283,7 @@ async def search_album(artist: str, title: str) -> dict | None:
     }
 
     params = {
-        "q": f'album:"{title}" artist:"{artist}"',
+        "q": query,
         "type": "album",
         "limit": 10,
         "market": "US",
@@ -221,69 +291,38 @@ async def search_album(artist: str, title: str) -> dict | None:
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            "https://api.spotify.com/v1/search",
+            f"{API_URL}/search",
             headers=headers,
             params=params,
         )
+
         response.raise_for_status()
 
         data = response.json()
 
         albums = data.get("albums", {}).get("items", [])
 
-        candidates = []
+        results = []
 
         for album in albums:
-            album_title = album.get("name", "").strip()
-            album_artists = [
-                a.get("name", "").strip() for a in album.get("artists", [])
-            ]
-
-            if album_title.lower() != title.strip().lower():
+            try:
+                metadata = await get_album_metadata(
+                    album=album,
+                    client=client,
+                    headers=headers,
+                )
+            except (httpx.HTTPError, RuntimeError):
                 continue
 
-            if artist.strip().lower() not in {a.lower() for a in album_artists}:
-                continue
+            results.append(metadata)
 
-            candidates.append(album)
+    # Explicit releases first.
+    results.sort(
+        key=lambda album: (
+            not album["explicit"],
+            album["artist"].lower(),
+            album["title"].lower(),
+        )
+    )
 
-        if not candidates:
-            return None
-
-        # Check each matching album for explicit tracks.
-        explicit_candidates = []
-
-        for album in candidates:
-            album_id = album.get("id")
-
-            if not album_id:
-                continue
-
-            tracks_response = await client.get(
-                f"https://api.spotify.com/v1/albums/{album_id}/tracks",
-                headers=headers,
-                params={
-                    "market": "US",
-                    "limit": 50,
-                },
-            )
-            tracks_response.raise_for_status()
-
-            tracks = tracks_response.json().get("items", [])
-
-            if any(track.get("explicit", False) for track in tracks):
-                explicit_candidates.append(album)
-
-        # Prefer an explicit release when one exists.
-        if explicit_candidates:
-            candidates = explicit_candidates
-
-        selected = candidates[0]
-
-        selected_artist = selected.get("artists", [{}])[0].get("name", artist)
-
-        return {
-            "artist": selected_artist,
-            "title": selected.get("name", title),
-            "spotify_uri": selected.get("uri"),
-        }
+    return results
