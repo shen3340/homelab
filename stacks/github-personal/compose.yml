@@ -1,0 +1,20 @@
+services:
+  github-mcp-personal:
+    image: ghcr.io/github/github-mcp-server:latest
+    command:
+      - http
+      - --port
+      - "8080"
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_PERSONAL_ACCESS_TOKEN}
+      GITHUB_READ_ONLY: "1"
+      GITHUB_TOOLSETS: "context,repos"
+      GITHUB_MCP_SERVER_NAME: "github-personal"
+      GITHUB_MCP_SERVER_TITLE: "Personal GitHub MCP"
+    networks:
+      - ai-net
+    restart: unless-stopped
+
+networks:
+  ai-net:
+    external: true
