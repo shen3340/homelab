@@ -9,7 +9,10 @@ services:
       - /volume1/docker/uptime-kuma:/app/data
     networks:
       - internal
+      - media
 
 networks:
   internal:
+    external: true
+  media:
     external: true
