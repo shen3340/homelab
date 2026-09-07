@@ -1,7 +1,16 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.10
+  - repo: local
     hooks:
-      - id: ruff-check
-        args: [--fix]
-      - id: ruff-format
+      - id: ruff
+        name: Ruff
+        entry: python scripts/precommit_ruff.py
+        language: python
+        additional_dependencies:
+          - ruff==0.12.10
+        types: [python]
+
+      - id: docker-hub-images-only
+        name: Docker Hub images only
+        entry: bash -c 'grep -RInE "^[[:space:]]*image:[[:space:]]*" stacks --include="*.yml" --include="*.yaml" | awk '"'"'{img=$0; sub(/^[[:space:]]*image:[[:space:]]*/, "", img); split(img,p,"/"); if (p[1] ~ /\./ || p[1] ~ /:/ || p[1] == "localhost") print}'"'"''
+        language: system
+        pass_filenames: false
