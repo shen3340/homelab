@@ -10,6 +10,8 @@ services:
     networks:
       - internal
       - media
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
 networks:
   internal:
