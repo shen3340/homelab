@@ -1,0 +1,53 @@
+services:
+  lastglance:
+    image: ghcr.io/krelltunez/lastglance:latest
+    container_name: lastglance
+    restart: unless-stopped
+    ports:
+      - "6768:80"
+    networks:
+      - internal
+    depends_on:
+      - lastglance-webdav
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  lastglance-webdav:
+    image: haohanyang/webdav:latest
+    container_name: lastglance-webdav
+    restart: unless-stopped
+    environment:
+      WEBDAV_DIR: /data
+      WEBDAV_USERNAME: ${WEBDAV_USERNAME}
+      WEBDAV_PASSWORD: ${WEBDAV_PASSWORD}
+    volumes:
+      - /volume1/docker/lastglance-webdav:/data
+    networks:
+      - internal
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  lastglance-notifier:
+    build:
+      context: ../../services/lastglance-notifier
+      dockerfile: Dockerfile
+    container_name: lastglance-notifier
+    restart: unless-stopped
+    environment:
+      TZ: America/New_York
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      CHECK_INTERVAL_MINUTES: ${CHECK_INTERVAL_MINUTES:-60}
+      REMINDER_INTERVAL_DAYS: ${REMINDER_INTERVAL_DAYS:-7}
+      TEST_CHORE_ID: ${TEST_CHORE_ID:-}
+      TEST_OVERDUE_DAYS: ${TEST_OVERDUE_DAYS:-0}
+    volumes:
+      - /volume1/docker/lastglance-webdav/GLANCE/lastglance:/data:ro
+      - /volume1/docker/lastglance-notifier:/state
+    networks:
+      - internal
+    depends_on:
+      - lastglance-webdav
+
+networks:
+  internal:
+    external: true
