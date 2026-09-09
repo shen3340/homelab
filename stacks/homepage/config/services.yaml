@@ -1,0 +1,63 @@
+- Infrastructure:
+    - Portainer:
+        icon: portainer.png
+        href: https://portainer.shen3340.com
+        description: Docker management
+
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: https://kuma.shen3340.com
+        description: Service monitoring
+
+    - Dozzle:
+        icon: dozzle.png
+        href: https://dozzle.shen3340.com
+        description: Container logs
+
+    - BookStack:
+        icon: bookstack.png
+        href: https://docs.shen3340.com
+        description: Homelab documentation
+
+- Media:
+    - Jellyfin:
+        icon: jellyfin.png
+        href: https://media.shen3340.com
+        description: Media server
+
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.shen3340.com
+        description: Movie management
+
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.shen3340.com
+        description: TV management
+
+    - Prowlarr:
+        icon: prowlarr.png
+        href: https://prowlarr.shen3340.com
+        description: Indexer management
+
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://torrent.shen3340.com
+        description: Download management
+
+- AI:
+    - Open WebUI:
+        icon: open-webui.png
+        href: https://ai.shen3340.com
+        description: Local AI
+
+- Applications:
+    - Vikunja:
+        icon: vikunja.png
+        href: https://tasks.shen3340.com
+        description: Task management
+
+    - Public Status:
+        icon: uptime-kuma.png
+        href: https://status.shen3340.com
+        description: Public service status

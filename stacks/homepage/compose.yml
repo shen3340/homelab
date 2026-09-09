@@ -1,0 +1,18 @@
+services:
+  homepage:
+    image: gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: homepage.shen3340.com
+
+    volumes:
+      - /volume1/docker/homepage/config:/app/config
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

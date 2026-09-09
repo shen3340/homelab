@@ -1,0 +1,22 @@
+title: Homelab
+
+headerStyle: clean
+
+theme: dark
+
+layout:
+  Infrastructure:
+    style: row
+    columns: 4
+
+  Media:
+    style: row
+    columns: 4
+
+  AI:
+    style: row
+    columns: 4
+
+  Applications:
+    style: row
+    columns: 4
