@@ -5,6 +5,8 @@ services:
       - http
       - --port
       - "8080"
+    ports:
+      - "8084:8080"
     environment:
       GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_PERSONAL_ACCESS_TOKEN}
       GITHUB_READ_ONLY: "1"
