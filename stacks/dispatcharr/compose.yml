@@ -1,0 +1,28 @@
+services:
+  dispatcharr:
+    image: ghcr.io/dispatcharr/dispatcharr:latest
+    container_name: dispatcharr
+    restart: unless-stopped
+
+    environment:
+      - TZ=America/New_York
+      - DISPATCHARR_ENV=aio
+      - REDIS_HOST=localhost
+      - CELERY_BROKER_URL=redis://localhost:6379/0
+      - DISPATCHARR_LOG_LEVEL=info
+
+    volumes:
+      - /volume1/docker/dispatcharr/data:/data
+
+    ports:
+      - "9191:9191"
+
+    networks:
+      - media
+
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  media:
+    external: true
