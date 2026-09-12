@@ -1,0 +1,89 @@
+services:
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/radarr/config:/config
+      - /volume1/media:/data
+
+    ports:
+      - "7878:7878"
+
+    networks:
+      - media
+
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/sonarr/config:/config
+      - /volume1/media:/data
+
+    ports:
+      - "8989:8989"
+
+    networks:
+      - media
+
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/prowlarr/config:/config
+
+    ports:
+      - "9696:9696"
+
+    networks:
+      - media
+
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=America/New_York
+
+    networks:
+      - media
+
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  media:
+    external: true
