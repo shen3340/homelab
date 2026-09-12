@@ -12,6 +12,8 @@ services:
 
     networks:
       - proxy
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
 networks:
   proxy:

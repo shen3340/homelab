@@ -4,11 +4,14 @@ services:
     container_name: watchtower
     restart: unless-stopped
 
+    environment:
+      - TZ=America/New_York
+
     command:
       - --label-enable
       - --cleanup
-      - --interval
-      - "86400"
+      - --schedule
+      - "0 0 3 * * *"
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

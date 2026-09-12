@@ -16,6 +16,8 @@ services:
       - tiny-int8
       - --language
       - en
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
 networks:
   ai-net:
