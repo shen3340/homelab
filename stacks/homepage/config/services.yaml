@@ -24,6 +24,7 @@
         icon: jellyfin.png
         href: https://media.shen3340.com
         description: Media server
+        siteMonitor: https://media.shen3340.com
 
     - Radarr:
         icon: radarr.png
