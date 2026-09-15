@@ -9,12 +9,16 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - dozzle_data:/data
 
     networks:
       - internal
 
     labels:
       - com.centurylinklabs.watchtower.enable=true
+
+volumes:
+  dozzle_data:
 
 networks:
   internal:
