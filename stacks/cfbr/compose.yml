@@ -1,0 +1,40 @@
+services:
+  cfbr-postgres:
+    image: postgres:18
+    container_name: cfbr-postgres
+
+    environment:
+      POSTGRES_DB: cfbr
+      POSTGRES_USER: cfbr
+      POSTGRES_PASSWORD: ${CFBR_DATABASE_PASSWORD}
+
+    volumes:
+      - /volume1/databases/cfbr-postgres:/var/lib/postgresql
+
+    ports:
+      - "5433:5432"
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+
+  cfbr-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cfbr-pgadmin
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${CFBR_PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${CFBR_PGADMIN_PASSWORD}
+
+    volumes:
+      - /volume1/docker/cfbr-pgadmin:/var/lib/pgadmin
+
+    restart: unless-stopped
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true
