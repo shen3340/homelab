@@ -12,7 +12,7 @@ services:
       - /volume1/databases/cfbr-postgres:/var/lib/postgresql
 
     ports:
-      - "5433:5432"
+      - "5434:5432"
 
     restart: unless-stopped
 
