@@ -27,6 +27,9 @@ PORTAINER_API_KEY = os.environ["PORTAINER_API_KEY"]
 PORTAINER_TIMEOUT = float(os.getenv("PORTAINER_TIMEOUT", "10"))
 MAX_PROCESSED_DELIVERIES = int(os.getenv("MAX_PROCESSED_DELIVERIES", "1000"))
 
+CFBR_DEPLOYMENT_SECRET = os.environ["CFBR_DEPLOYMENT_SECRET"]
+CFBR_STACK_NAME = os.getenv("CFBR_STACK_NAME", "cfbr-app")
+
 processed_deliveries: set[str] = set()
 processed_delivery_order: deque[str] = deque()
 
@@ -57,6 +60,18 @@ app = FastAPI(
 
 
 # region Helpers
+
+
+def verify_cfbr_deployment_key(provided_key: str | None) -> bool:
+    """Validate the shared secret used by the CFBR deployment workflow."""
+
+    if not provided_key:
+        return False
+
+    return hmac.compare_digest(
+        CFBR_DEPLOYMENT_SECRET,
+        provided_key,
+    )
 
 
 def verify_signature(payload: bytes, signature: str | None) -> bool:
@@ -310,6 +325,46 @@ async def redeploy_portainer_stack(
     return False
 
 
+async def deploy_stack_by_name(stack_name: str) -> bool:
+    """Find a Portainer stack by name and repull/redeploy it."""
+
+    headers = {
+        "X-API-Key": PORTAINER_API_KEY,
+        "Accept": "application/json",
+    }
+
+    async with httpx.AsyncClient(
+        timeout=PORTAINER_TIMEOUT,
+        follow_redirects=False,
+        verify=False,
+        headers=headers,
+    ) as client:
+        stack = await find_portainer_stack(
+            client=client,
+            stack_name=stack_name,
+        )
+
+        if not stack:
+            logger.warning(
+                "No Portainer stack found stack=%s",
+                stack_name,
+            )
+            return False
+
+        if not stack.get("GitConfig"):
+            logger.warning(
+                "Portainer stack is not Git-backed stack=%s id=%s",
+                stack_name,
+                stack.get("Id"),
+            )
+            return False
+
+        return await redeploy_portainer_stack(
+            client=client,
+            stack=stack,
+        )
+
+
 # endregion
 
 
@@ -328,7 +383,6 @@ async def github_webhook(
     x_github_delivery: str | None = Header(default=None),
     x_hub_signature_256: str | None = Header(default=None),
 ) -> dict[str, Any]:
-
     body = await request.body()
 
     if not x_github_delivery:
@@ -547,6 +601,34 @@ async def github_webhook(
         "triggered": triggered,
         "failed": failed,
         "unregistered": unregistered,
+    }
+
+
+@app.post("/deploy/cfbr")
+async def deploy_cfbr(
+    x_cfbr_deployment_key: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Redeploy CFBR after a successful GHCR build."""
+
+    if not verify_cfbr_deployment_key(x_cfbr_deployment_key):
+        logger.warning("Invalid CFBR deployment key")
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid deployment key",
+        )
+
+    success = await deploy_stack_by_name(CFBR_STACK_NAME)
+
+    if not success:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to redeploy Portainer stack: {CFBR_STACK_NAME}",
+        )
+
+    return {
+        "status": "ok",
+        "stack": CFBR_STACK_NAME,
+        "repull_image": True,
     }
 
 
