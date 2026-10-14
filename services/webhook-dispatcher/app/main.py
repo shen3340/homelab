@@ -28,7 +28,7 @@ PORTAINER_TIMEOUT = float(os.getenv("PORTAINER_TIMEOUT", "10"))
 MAX_PROCESSED_DELIVERIES = int(os.getenv("MAX_PROCESSED_DELIVERIES", "1000"))
 
 CFBR_DEPLOYMENT_SECRET = os.environ["CFBR_DEPLOYMENT_SECRET"]
-CFBR_STACK_NAME = os.getenv("CFBR_STACK_NAME", "cfbr-app")
+CFBR_STACK_NAME = os.getenv("CFBR_STACK_NAME", "cfbr")
 
 processed_deliveries: set[str] = set()
 processed_delivery_order: deque[str] = deque()
