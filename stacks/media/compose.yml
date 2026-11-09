@@ -20,7 +20,7 @@ services:
       - media
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   sonarr:
     image: linuxserver/sonarr:latest
@@ -43,7 +43,7 @@ services:
       - media
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   prowlarr:
     image: linuxserver/prowlarr:latest
@@ -65,7 +65,7 @@ services:
       - media
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   flaresolverr:
     image: flaresolverr/flaresolverr:latest
@@ -82,7 +82,7 @@ services:
       - media
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
@@ -118,7 +118,7 @@ services:
       - ALL
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
       
 networks:
   media:

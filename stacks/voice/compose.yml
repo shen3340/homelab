@@ -18,7 +18,7 @@ services:
       - jarvis-high
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   whisper:
     image: rhasspy/wyoming-whisper:latest
@@ -41,7 +41,7 @@ services:
       - en
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   openwakeword:
     image: rhasspy/wyoming-openwakeword:latest
@@ -62,7 +62,7 @@ services:
       - ok_nabu
 
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
 networks:
   ai-net:

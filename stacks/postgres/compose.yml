@@ -33,7 +33,7 @@ services:
       - internal
       - proxy
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 networks:
   proxy:
     external: true

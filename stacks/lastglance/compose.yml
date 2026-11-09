@@ -10,7 +10,7 @@ services:
     depends_on:
       - lastglance-webdav
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   lastglance-webdav:
     image: haohanyang/webdav:latest
@@ -25,7 +25,7 @@ services:
     networks:
       - internal
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   lastglance-notifier:
     build:

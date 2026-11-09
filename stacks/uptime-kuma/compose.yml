@@ -11,7 +11,7 @@ services:
       - internal
       - media
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
 networks:
   internal:

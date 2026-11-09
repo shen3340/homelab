@@ -1,3 +1,4 @@
+
 services:
   dozzle:
     image: amir20/dozzle:latest
@@ -7,15 +8,18 @@ services:
     ports:
       - "8081:8080"
 
+    environment:
+      DOZZLE_ENABLE_ACTIONS: "true"
+      DOZZLE_AUTO_UPDATE: daily
+      DOZZLE_AUTO_UPDATE_TIME: "03:00"
+      DOZZLE_UPDATE_CONTAINERS: labelled
+
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - dozzle_data:/data
 
     networks:
       - internal
-
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
 
 volumes:
   dozzle_data:

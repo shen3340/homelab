@@ -31,7 +31,7 @@ services:
     networks:
       - internal
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - dev.dozzle.update=auto
 
   bookstack-db:
     image: linuxserver/mariadb:latest
