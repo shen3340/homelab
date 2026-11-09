@@ -10,7 +10,7 @@ from collections import deque
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 
 # endregion
 
@@ -182,7 +182,7 @@ async def get_portainer_stacks(
     stacks = response.json()
 
     if not isinstance(stacks, list):
-        raise RuntimeError("Portainer /api/stacks returned unexpected data")
+        raise TypeError("Portainer /api/stacks returned unexpected data")
 
     logger.info(
         "Discovered Portainer stacks count=%s",
@@ -192,21 +192,16 @@ async def get_portainer_stacks(
     return stacks
 
 
-async def find_portainer_stack(
-    client: httpx.AsyncClient,
+def find_portainer_stack(
+    stacks: list[dict[str, Any]],
     stack_name: str,
 ) -> dict[str, Any] | None:
-    """Find a Portainer stack by name."""
+    """Find a Portainer stack from an already retrieved stack list."""
 
-    stacks = await get_portainer_stacks(client)
-
-    for stack in stacks:
-        name = stack.get("Name")
-
-        if name == stack_name:
-            return stack
-
-    return None
+    return next(
+        (stack for stack in stacks if stack.get("Name") == stack_name),
+        None,
+    )
 
 
 async def redeploy_portainer_stack(
@@ -339,8 +334,10 @@ async def deploy_stack_by_name(stack_name: str) -> bool:
         verify=False,
         headers=headers,
     ) as client:
-        stack = await find_portainer_stack(
-            client=client,
+        stacks = await get_portainer_stacks(client)
+
+        stack = find_portainer_stack(
+            stacks=stacks,
             stack_name=stack_name,
         )
 
@@ -365,6 +362,88 @@ async def deploy_stack_by_name(stack_name: str) -> bool:
         )
 
 
+async def process_github_deployments(
+    affected_stacks: set[str],
+    delivery_id: str,
+    commit_sha: str,
+) -> None:
+    """Deploy all affected Portainer stacks concurrently."""
+
+    headers = {
+        "X-API-Key": PORTAINER_API_KEY,
+        "Accept": "application/json",
+    }
+
+    triggered: list[str] = []
+    failed: list[str] = []
+    unregistered: list[str] = []
+
+    async with httpx.AsyncClient(
+        timeout=PORTAINER_TIMEOUT,
+        follow_redirects=False,
+        verify=False,
+        headers=headers,
+    ) as client:
+        # Fetch Portainer stacks once.
+        stacks = await get_portainer_stacks(client)
+
+        async def deploy_one(stack_name: str) -> None:
+            try:
+                stack = find_portainer_stack(
+                    stacks=stacks,
+                    stack_name=stack_name,
+                )
+
+                if not stack:
+                    logger.warning(
+                        "No Portainer stack found stack=%s",
+                        stack_name,
+                    )
+                    unregistered.append(stack_name)
+                    return
+
+                if not stack.get("GitConfig"):
+                    logger.warning(
+                        "Portainer stack is not Git-backed stack=%s id=%s",
+                        stack_name,
+                        stack.get("Id"),
+                    )
+                    failed.append(stack_name)
+                    return
+
+                success = await redeploy_portainer_stack(
+                    client=client,
+                    stack=stack,
+                )
+
+                if success:
+                    triggered.append(stack_name)
+                else:
+                    failed.append(stack_name)
+
+            except Exception:
+                logger.exception(
+                    "Unexpected deployment error stack=%s",
+                    stack_name,
+                )
+                failed.append(stack_name)
+
+        # Deploy every affected stack concurrently.
+        await asyncio.gather(
+            *[deploy_one(stack_name) for stack_name in sorted(affected_stacks)]
+        )
+
+    logger.info(
+        "Background deployment complete "
+        "delivery=%s commit=%s triggered=%s failed=%s unregistered=%s",
+        delivery_id,
+        commit_sha,
+        sorted(triggered),
+        sorted(failed),
+        sorted(unregistered),
+    )
+
+
 # endregion
 
 
@@ -379,6 +458,7 @@ async def health() -> dict[str, str]:
 @app.post("/webhook/github")
 async def github_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_github_event: str | None = Header(default=None),
     x_github_delivery: str | None = Header(default=None),
     x_hub_signature_256: str | None = Header(default=None),
@@ -501,9 +581,7 @@ async def github_webhook(
             "commit": commit_sha,
             "changed_paths": sorted(changed_paths),
             "affected_stacks": [],
-            "triggered": [],
-            "failed": [],
-            "unregistered": [],
+            "deployment_status": "not_required",
         }
 
     logger.info(
@@ -512,95 +590,27 @@ async def github_webhook(
         sorted(affected_stacks),
     )
 
-    triggered: list[str] = []
-    failed: list[str] = []
-    unregistered: list[str] = []
-
-    headers = {
-        "X-API-Key": PORTAINER_API_KEY,
-        "Accept": "application/json",
-    }
-
-    async with httpx.AsyncClient(
-        timeout=PORTAINER_TIMEOUT,
-        follow_redirects=False,
-        verify=False,
-        headers=headers,
-    ) as client:
-        for stack_name in sorted(affected_stacks):
-            try:
-                stack = await find_portainer_stack(
-                    client=client,
-                    stack_name=stack_name,
-                )
-
-                if not stack:
-                    logger.warning(
-                        "No Portainer stack found stack=%s",
-                        stack_name,
-                    )
-
-                    unregistered.append(stack_name)
-                    continue
-
-                git_config = stack.get("GitConfig")
-
-                if not git_config:
-                    logger.warning(
-                        "Portainer stack is not Git-backed stack=%s id=%s",
-                        stack_name,
-                        stack.get("Id"),
-                    )
-
-                    failed.append(stack_name)
-                    continue
-
-                success = await redeploy_portainer_stack(
-                    client=client,
-                    stack=stack,
-                )
-
-                if success:
-                    triggered.append(stack_name)
-                else:
-                    failed.append(stack_name)
-
-            except httpx.HTTPError as exc:
-                logger.exception(
-                    "Portainer API error stack=%s error=%s",
-                    stack_name,
-                    exc,
-                )
-                failed.append(stack_name)
-
-            except Exception as exc:
-                logger.exception(
-                    "Unexpected stack processing error stack=%s error=%s",
-                    stack_name,
-                    exc,
-                )
-                failed.append(stack_name)
+    background_tasks.add_task(
+        process_github_deployments,
+        affected_stacks=affected_stacks,
+        delivery_id=delivery_id,
+        commit_sha=commit_sha,
+    )
 
     logger.info(
-        "Webhook processing complete "
-        "delivery=%s commit=%s triggered=%s "
-        "failed=%s unregistered=%s",
+        "Deployment jobs queued delivery=%s commit=%s stacks=%s",
         delivery_id,
         commit_sha,
-        triggered,
-        failed,
-        unregistered,
+        sorted(affected_stacks),
     )
 
     return {
-        "status": "ok",
+        "status": "accepted",
         "delivery_id": delivery_id,
         "commit": commit_sha,
         "changed_paths": sorted(changed_paths),
         "affected_stacks": sorted(affected_stacks),
-        "triggered": triggered,
-        "failed": failed,
-        "unregistered": unregistered,
+        "deployment_status": "scheduled",
     }
 
 
