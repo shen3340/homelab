@@ -25,6 +25,89 @@
 
       <div id="message" class="message hidden"></div>
 
+      <section id="library-audit-section">
+  <div class="section-header">
+    <h2>Spotify Library Audit</h2>
+    <button id="refresh-playlists-button" class="secondary-button">
+      Refresh Playlists
+    </button>
+  </div>
+
+  <p class="help-text">
+    Compare Spotify playlist tracks against your Lidarr library and actual NAS files.
+    This audit does not add, monitor, or download music.
+  </p>
+
+  <div class="audit-controls">
+    <select id="playlist-select">
+      <option value="">Loading playlists...</option>
+    </select>
+
+    <button id="audit-playlist-button" class="primary-button" disabled>
+      Check Playlist
+    </button>
+  </div>
+
+  <div id="audit-message" class="help-text" aria-live="polite"></div>
+
+  <div id="audit-summary" class="audit-summary hidden">
+    <div class="audit-stat">
+      <strong id="audit-total">0</strong>
+      <span>Total Tracks</span>
+    </div>
+    <div class="audit-stat status-on-nas">
+      <strong id="audit-on-nas">0</strong>
+      <span>On NAS</span>
+    </div>
+    <div class="audit-stat status-missing">
+      <strong id="audit-missing">0</strong>
+      <span>Missing File</span>
+    </div>
+    <div class="audit-stat status-not-in-lidarr">
+      <strong id="audit-not-in-lidarr">0</strong>
+      <span>Not in Lidarr</span>
+    </div>
+  </div>
+
+  <div id="audit-results-section" class="hidden">
+    <div class="audit-results-controls">
+      <input
+        id="audit-search"
+        type="search"
+        placeholder="Search track, artist, or album..."
+        autocomplete="off"
+      />
+
+      <select id="audit-filter">
+        <option value="all">All statuses</option>
+        <option value="on_nas">On NAS</option>
+        <option value="missing_file">Missing File</option>
+        <option value="not_in_lidarr">Not in Lidarr</option>
+      </select>
+    </div>
+
+    <div id="audit-results-info" class="tag-results-info"></div>
+
+    <div class="audit-table-wrapper">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Track</th>
+            <th>Album</th>
+            <th>Status</th>
+            <th>Spotify</th>
+          </tr>
+        </thead>
+        <tbody id="audit-results"></tbody>
+      </table>
+    </div>
+
+    <div id="audit-empty" class="empty hidden">
+      No tracks match current filters.
+    </div>
+  </div>
+</section>
+
       <section id="tags-section">
         <div class="section-header">
           <h2>NFC Tags</h2>

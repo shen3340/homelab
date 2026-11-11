@@ -16,6 +16,9 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
 
+      LIDARR_URL: http://lidarr:8686
+      LIDARR_API_KEY: ${LIDARR_API_KEY}
+
     ports:
       - "8000:8000"
 
@@ -23,7 +26,10 @@ services:
 
     networks:
       - internal
+      - media
 
 networks:
   internal:
+    external: true
+  media:
     external: true

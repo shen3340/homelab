@@ -21,7 +21,12 @@ API_URL = "https://api.spotify.com/v1"
 SCOPES = [
     "user-read-playback-state",
     "user-modify-playback-state",
+    "user-library-read",
+    "playlist-read-private",
+    "playlist-read-collaborative",
 ]
+
+LIKED_SONGS_ID = "liked-songs"
 
 
 def get_authorization_url(state: str) -> str:
@@ -326,3 +331,137 @@ async def search_albums(query: str) -> list[dict]:
     )
 
     return results
+
+
+async def get_user_playlists() -> list[dict]:
+    playlists = []
+    offset = 0
+
+    while True:
+        response = await spotify_request(
+            "GET",
+            "/me/playlists",
+            params={"limit": 50, "offset": offset},
+        )
+
+        data = response.json()
+        items = data.get("items", [])
+
+        playlists.extend(
+            [
+                {
+                    "id": playlist["id"],
+                    "name": playlist["name"],
+                    "track_count": playlist.get("items", {}).get(
+                        "total",
+                        playlist.get("tracks", {}).get("total", 0),
+                    ),
+                    "url": playlist.get("external_urls", {}).get("spotify"),
+                }
+                for playlist in items
+            ]
+        )
+
+        if not data.get("next") or not items:
+            break
+
+        offset += len(items)
+
+    # Liked Songs is separate from Spotify playlists.
+    liked_songs_response = await spotify_request(
+        "GET",
+        "/me/tracks",
+        params={"limit": 1, "offset": 0},
+    )
+
+    playlists.insert(
+        0,
+        {
+            "id": LIKED_SONGS_ID,
+            "name": "Liked Songs",
+            "track_count": liked_songs_response.json().get("total", 0),
+            "url": "https://open.spotify.com/collection/tracks",
+        },
+    )
+
+    return playlists
+
+
+async def get_liked_tracks() -> list[dict]:
+    tracks = []
+    offset = 0
+
+    while True:
+        response = await spotify_request(
+            "GET",
+            "/me/tracks",
+            params={"limit": 50, "offset": offset},
+        )
+
+        data = response.json()
+        items = data.get("items", [])
+
+        for entry in items:
+            track = entry.get("track") or entry.get("item")
+
+            if not track or track.get("type") != "track":
+                continue
+
+            artists = track.get("artists", [])
+
+            tracks.append(
+                {
+                    "spotify_id": track.get("id"),
+                    "title": track.get("name", ""),
+                    "artist": artists[0]["name"] if artists else "",
+                    "album": track.get("album", {}).get("name", ""),
+                    "spotify_url": track.get("external_urls", {}).get("spotify"),
+                }
+            )
+
+        if not data.get("next") or not items:
+            break
+
+        offset += len(items)
+
+    return tracks
+
+
+async def get_playlist_tracks(playlist_id: str) -> list[dict]:
+    tracks = []
+    offset = 0
+
+    while True:
+        response = await spotify_request(
+            "GET",
+            f"/playlists/{playlist_id}/items",
+            params={"limit": 50, "offset": offset},
+        )
+
+        data = response.json()
+        items = data.get("items", [])
+
+        for entry in items:
+            track = entry.get("item") or entry.get("track")
+
+            if not track or track.get("type") != "track":
+                continue
+
+            artists = track.get("artists", [])
+
+            tracks.append(
+                {
+                    "spotify_id": track.get("id"),
+                    "title": track.get("name", ""),
+                    "artist": artists[0]["name"] if artists else "",
+                    "album": track.get("album", {}).get("name", ""),
+                    "spotify_url": track.get("external_urls", {}).get("spotify"),
+                }
+            )
+
+        if not data.get("next") or not items:
+            break
+
+        offset += len(items)
+
+    return tracks

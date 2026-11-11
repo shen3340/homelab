@@ -16,6 +16,12 @@ const state = {
     source: null,
     existingTag: null,
   },
+    libraryAudit: {
+    playlists: [],
+    results: [],
+    filter: "all",
+    search: "",
+  },
 };
 
 const elements = {
@@ -59,6 +65,21 @@ const elements = {
 
   deleteModal: document.getElementById("delete-modal"),
   deleteDetails: document.getElementById("delete-details"),
+    playlistSelect: document.getElementById("playlist-select"),
+  refreshPlaylistsButton: document.getElementById("refresh-playlists-button"),
+  auditPlaylistButton: document.getElementById("audit-playlist-button"),
+  auditMessage: document.getElementById("audit-message"),
+  auditSummary: document.getElementById("audit-summary"),
+  auditTotal: document.getElementById("audit-total"),
+  auditOnNas: document.getElementById("audit-on-nas"),
+  auditMissing: document.getElementById("audit-missing"),
+  auditNotInLidarr: document.getElementById("audit-not-in-lidarr"),
+  auditResultsSection: document.getElementById("audit-results-section"),
+  auditSearch: document.getElementById("audit-search"),
+  auditFilter: document.getElementById("audit-filter"),
+  auditResultsInfo: document.getElementById("audit-results-info"),
+  auditResults: document.getElementById("audit-results"),
+  auditEmpty: document.getElementById("audit-empty"),
 };
 
 function showMessage(text, type) {
@@ -849,6 +870,166 @@ async function deleteTag() {
   }
 }
 
+async function loadSpotifyPlaylists() {
+  const select = elements.playlistSelect;
+elements.auditPlaylistButton.disabled = true;
+  elements.refreshPlaylistsButton.disabled = true;
+  select.disabled = true;
+  select.innerHTML = '<option value="">Loading playlists...</option>';
+  elements.auditMessage.textContent = "";
+
+  try {
+    const playlists = await api("/spotify/playlists");
+
+    state.libraryAudit.playlists = playlists;
+    select.innerHTML = "";
+
+    if (!playlists.length) {
+      select.innerHTML = '<option value="">No playlists found</option>';
+      elements.auditMessage.textContent = "No Spotify playlists were returned.";
+      return;
+    }
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select a Spotify playlist...";
+    select.appendChild(placeholder);
+
+    playlists.forEach((playlist) => {
+      const option = document.createElement("option");
+      option.value = playlist.id;
+      option.textContent =
+        `${playlist.name} (${playlist.track_count} tracks)`;
+      select.appendChild(option);
+    });
+
+    select.disabled = false;
+    elements.auditMessage.textContent =
+      `${playlists.length} Spotify playlists loaded.`;
+  } catch (error) {
+    select.innerHTML = '<option value="">Unable to load playlists</option>';
+    elements.auditMessage.textContent = error.message;
+  } finally {
+    elements.refreshPlaylistsButton.disabled = false;
+  }
+}
+
+async function auditSpotifyPlaylist() {
+  const playlistId = elements.playlistSelect.value;
+
+  if (!playlistId) {
+    elements.auditMessage.textContent = "Select a playlist first.";
+    return;
+  }
+
+  const playlist = state.libraryAudit.playlists.find(
+    (item) => item.id === playlistId,
+  );
+
+  elements.auditPlaylistButton.disabled = true;
+  elements.auditPlaylistButton.textContent = "Checking...";
+  elements.auditMessage.textContent =
+    `Checking ${playlist?.name || "playlist"} against Lidarr...`;
+
+  elements.auditSummary.classList.add("hidden");
+  elements.auditResultsSection.classList.add("hidden");
+
+  try {
+    const result = await api(
+      `/library/audit/${encodeURIComponent(playlistId)}`,
+    );
+
+    state.libraryAudit.results = result.tracks || [];
+    state.libraryAudit.filter = "all";
+    state.libraryAudit.search = "";
+
+    elements.auditSearch.value = "";
+    elements.auditFilter.value = "all";
+
+    elements.auditTotal.textContent = result.total;
+    elements.auditOnNas.textContent = result.on_nas;
+    elements.auditMissing.textContent = result.missing_file;
+    elements.auditNotInLidarr.textContent = result.not_in_lidarr;
+
+    elements.auditSummary.classList.remove("hidden");
+    elements.auditResultsSection.classList.remove("hidden");
+
+    renderAuditResults();
+
+    elements.auditMessage.textContent =
+      `Finished checking ${playlist?.name || "playlist"}.`;
+  } catch (error) {
+    elements.auditMessage.textContent =
+      `Playlist audit failed: ${error.message}`;
+  } finally {
+    elements.auditPlaylistButton.disabled = false;
+    elements.auditPlaylistButton.textContent = "Check Playlist";
+  }
+}
+
+function renderAuditResults() {
+  const { results, filter, search } = state.libraryAudit;
+
+  const query = search.trim().toLowerCase();
+
+  const filtered = results.filter((track) => {
+    const matchesFilter = filter === "all" || track.status === filter;
+
+    const searchableText = [
+      track.title,
+      track.artist,
+      track.album,
+    ].join(" ").toLowerCase();
+
+    return matchesFilter && searchableText.includes(query);
+  });
+
+  elements.auditResults.innerHTML = "";
+
+  elements.auditResultsInfo.textContent =
+    `Showing ${filtered.length} of ${results.length} tracks`;
+
+  elements.auditEmpty.classList.toggle("hidden", filtered.length > 0);
+
+  filtered.forEach((track) => {
+    const row = document.createElement("tr");
+
+    const trackCell = document.createElement("td");
+    const trackTitle = document.createElement("strong");
+    trackTitle.textContent = track.title;
+    const artist = document.createElement("span");
+    artist.className = "audit-artist";
+    artist.textContent = track.artist;
+
+    trackCell.append(trackTitle, artist);
+
+    const albumCell = document.createElement("td");
+    albumCell.textContent = track.album || "Unknown album";
+
+    const statusCell = document.createElement("td");
+    const status = document.createElement("span");
+    status.className = `audit-status ${track.status}`;
+    status.textContent = {
+      on_nas: "On NAS",
+      missing_file: "Missing File",
+      not_in_lidarr: "Not in Lidarr",
+    }[track.status] || "Needs Review";
+
+    statusCell.appendChild(status);
+
+    const spotifyCell = document.createElement("td");
+    const link = document.createElement("a");
+    link.href = track.spotify_url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open";
+    spotifyCell.appendChild(link);
+
+    row.append(trackCell, albumCell, statusCell, spotifyCell);
+    elements.auditResults.appendChild(row);
+  });
+}
+
 function initializeAdmin() {
   document
     .getElementById("add-tag-button")
@@ -916,6 +1097,10 @@ function initializeAdmin() {
     .querySelector(".modal-backdrop")
     .addEventListener("click", closeDeleteModal);
 
+    elements.playlistSelect.addEventListener("change", () => {
+  elements.auditPlaylistButton.disabled = !elements.playlistSelect.value;
+});
+
   let tagSearchTimeout;
 
   elements.tagSearch.addEventListener("input", () => {
@@ -940,6 +1125,28 @@ function initializeAdmin() {
   });
 
   loadTags();
+
+    elements.refreshPlaylistsButton.addEventListener(
+    "click",
+    loadSpotifyPlaylists,
+  );
+
+  elements.auditPlaylistButton.addEventListener(
+    "click",
+    auditSpotifyPlaylist,
+  );
+
+  elements.auditSearch.addEventListener("input", () => {
+    state.libraryAudit.search = elements.auditSearch.value;
+    renderAuditResults();
+  });
+
+  elements.auditFilter.addEventListener("change", () => {
+    state.libraryAudit.filter = elements.auditFilter.value;
+    renderAuditResults();
+  });
+
+    loadSpotifyPlaylists();
 }
 
 if (document.readyState === "loading") {

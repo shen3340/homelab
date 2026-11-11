@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -16,9 +16,9 @@ from app.database import (
     delete_album,
     delete_tag,
     get_album_by_spotify_id,
-    get_available_albums,
     get_all_albums,
     get_all_tags,
+    get_available_albums,
     get_connection,
     get_spotify_device,
     get_tag,
@@ -27,12 +27,15 @@ from app.database import (
     update_album,
     update_tag,
 )
-
+from app.lidarr import compare_tracks, get_library_tracks
 from app.spotify import (
     exchange_code,
     get_album_by_id,
     get_authorization_url,
     get_devices,
+    get_liked_tracks,
+    get_playlist_tracks,
+    get_user_playlists,
     save_token_response,
     search_albums,
     set_repeat,
@@ -454,3 +457,44 @@ async def admin_delete_album(album_id: int) -> dict:
         "status": "deleted",
         "id": album_id,
     }
+
+
+@app.get("/spotify/playlists")
+async def admin_get_playlists() -> list[dict]:
+    try:
+        return await get_user_playlists()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unable to retrieve Spotify playlists: {exc}",
+        )
+
+
+@app.get("/library/audit/{playlist_id}")
+async def admin_audit_playlist(playlist_id: str) -> dict:
+    try:
+        if playlist_id == "liked-songs":
+            spotify_tracks = await get_liked_tracks()
+        else:
+            spotify_tracks = await get_playlist_tracks(playlist_id)
+
+        lidarr_tracks = await get_library_tracks()
+
+        results = compare_tracks(
+            spotify_tracks,
+            lidarr_tracks,
+        )
+
+        return {
+            "total": len(results),
+            "on_nas": sum(t["status"] == "on_nas" for t in results),
+            "missing_file": sum(t["status"] == "missing_file" for t in results),
+            "not_in_lidarr": sum(t["status"] == "not_in_lidarr" for t in results),
+            "tracks": results,
+        }
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Playlist audit failed: {exc}",
+        )
