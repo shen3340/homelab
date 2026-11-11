@@ -45,6 +45,29 @@ services:
     labels:
       - dev.dozzle.update=auto
 
+  lidarr:
+    image: linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/lidarr/config:/config
+      - /volume1/media:/data
+
+    ports:
+      - "8686:8686"
+
+    networks:
+      - media
+
+    labels:
+      - dev.dozzle.update=auto
+
   prowlarr:
     image: linuxserver/prowlarr:latest
     container_name: prowlarr
