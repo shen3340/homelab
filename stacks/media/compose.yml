@@ -14,7 +14,7 @@ services:
       - /volume1/media:/data
 
     ports:
-      - "7878:7878"
+      - "3101:7878"
 
     networks:
       - media
@@ -37,7 +37,7 @@ services:
       - /volume1/media:/data
 
     ports:
-      - "8989:8989"
+      - "3102:8989"
 
     networks:
       - media
@@ -60,7 +60,7 @@ services:
       - /volume1/media:/data
 
     ports:
-      - "8686:8686"
+      - "3103:8686"
 
     networks:
       - media
@@ -82,7 +82,7 @@ services:
       - /volume1/docker/prowlarr/config:/config
 
     ports:
-      - "9696:9696"
+      - "3104:9696"
 
     networks:
       - media
@@ -122,13 +122,13 @@ services:
       - /volume1/docker/seerr/config:/app/config
 
     ports:
-      - "5055:5055"
+      - "3105:5055"
 
     networks:
       - media
 
     healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/settings/public || exit 1
+      test: wget --no-verbose --tries=1 --spider http://localhost:3105/api/v1/settings/public || exit 1
       start_period: 20s
       timeout: 3s
       interval: 15s
@@ -159,7 +159,7 @@ services:
       - /volume1/docker/dispatcharr/data:/data
 
     ports:
-      - "9191:9191"
+      - "3106:9191"
 
     networks:
       - media

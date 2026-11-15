@@ -20,7 +20,7 @@ services:
       LIDARR_API_KEY: ${LIDARR_API_KEY}
 
     ports:
-      - "8000:8000"
+      - "3302:8000"
 
     restart: unless-stopped
 

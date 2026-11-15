@@ -4,7 +4,7 @@ services:
     container_name: jellyfin
     restart: unless-stopped
     ports:
-      - "8096:8096"
+      - "3107:8096"
     volumes:
       - /volume1/docker/jellyfin/config:/config
       - /volume1/docker/jellyfin/cache:/cache

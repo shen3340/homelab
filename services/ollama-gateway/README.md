@@ -56,15 +56,15 @@ docker compose up -d
 
 Gateway test:
 
-curl http://localhost:11435/health
+curl http://localhost:3204/health
 
 Backend test:
 
-curl http://localhost:11435/backend
+curl http://localhost:3204/backend
 
 Ollama models:
 
-curl http://localhost:11435/api/tags
+curl http://localhost:3204/api/tags
 
 ## Failover testing
 
@@ -72,7 +72,7 @@ curl http://localhost:11435/api/tags
 
 Verify primary is online:
 
-curl http://localhost:11435/api/tags
+curl http://localhost:3204/api/tags
 
 Expected models should match primary.
 
@@ -82,7 +82,7 @@ Stop primary Ollama.
 
 Run:
 
-curl http://localhost:11435/api/tags
+curl http://localhost:3204/api/tags
 
 Gateway should use backup.
 
@@ -94,7 +94,7 @@ Stop primary.
 
 Run:
 
-curl http://localhost:11435/api/tags
+curl http://localhost:3204/api/tags
 
 Gateway should:
 

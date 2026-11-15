@@ -23,7 +23,7 @@ services:
       - /volume1/docker/vaultwarden/data:/data
 
     ports:
-      - "8082:80"
+      - "3303:80"
 
     networks:
       - internal

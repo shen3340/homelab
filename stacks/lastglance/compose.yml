@@ -4,7 +4,7 @@ services:
     container_name: lastglance
     restart: unless-stopped
     ports:
-      - "6768:80"
+      - "3003:80"
     networks:
       - internal
     depends_on:

@@ -28,7 +28,7 @@ services:
       - ai-net
 
     ports:
-      - "11435:11434"
+      - "3204:11434"
 
     healthcheck:
       test:

@@ -21,7 +21,7 @@ services:
       - /volume1/docker/bookstack/config:/config
 
     ports:
-      - 6876:80
+      - 3305:80
 
     restart: unless-stopped
 
@@ -130,7 +130,7 @@ services:
       MCP_PORT: 8001
 
     ports:
-      - "8001:8001"
+      - "3203:8001"
 
     networks:
       - internal
