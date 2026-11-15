@@ -167,6 +167,30 @@ services:
     labels:
       - dev.dozzle.update=auto
 
+  aurral:
+    image: ghcr.io/lklynet/aurral:latest
+    container_name: aurral
+    restart: unless-stopped
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=America/New_York
+
+    volumes:
+      - /volume1/docker/aurral/config:/config
+      - /volume1/media:/data
+
+    ports:
+      - "3108:3001"
+
+    networks:
+      - media
+
+    labels:
+      - dev.dozzle.update=auto
+
+
 networks:
   media:
     external: true
