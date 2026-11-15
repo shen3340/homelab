@@ -9,6 +9,7 @@ services:
       - /volume1/docker/jellyfin/config:/config
       - /volume1/docker/jellyfin/cache:/cache
       - /volume1/media:/media
+      - /volume1/media:/data
     networks:
       - media
       - proxy

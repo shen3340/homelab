@@ -182,7 +182,7 @@ services:
       - /volume1/media:/data
 
     ports:
-      - "3108:3001"
+      - "3109:3001"
 
     networks:
       - media
