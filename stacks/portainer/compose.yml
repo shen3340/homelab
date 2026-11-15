@@ -9,7 +9,7 @@ services:
       PORTAINER_LICENSE_KEY: ${PORTAINER_LICENSE_KEY}
 
     ports:
-      - "7000:9443"
+      - "3004:9443"
 
     volumes:
       - /volume1/docker/portainer:/data
