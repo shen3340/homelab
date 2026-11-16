@@ -22,6 +22,8 @@ services:
     networks:
       - proxy
       - internal
+    labels:
+      - dev.dozzle.update=auto
 
 networks:
   proxy:

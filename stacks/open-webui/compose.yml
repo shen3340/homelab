@@ -19,6 +19,8 @@ services:
       - RAG_OLLAMA_BASE_URL=http://ollama-gateway:11434
     networks:
       - ai-net
+    labels:
+      - dev.dozzle.update=auto
 
 networks:
   ai-net:
