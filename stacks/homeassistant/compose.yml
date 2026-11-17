@@ -15,6 +15,9 @@ services:
     environment:
       - TZ=America/New_York
 
+    labels:
+      - dev.dozzle.update=auto
+
 networks:
   ai-net:
     external: true

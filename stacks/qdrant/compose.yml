@@ -10,6 +10,8 @@ services:
       - /volume1/docker/qdrant:/qdrant/storage
     networks:
       - ai-net
+    labels:
+      - dev.dozzle.update=auto
 
 networks:
   ai-net:
